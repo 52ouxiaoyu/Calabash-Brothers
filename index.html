@@ -427,6 +427,215 @@ class SoundManager {
 
 const sound = new SoundManager();
 
+// ==================== MUSIC MANAGER (Web Audio API) ====================
+class MusicManager {
+  constructor() {
+    this.audioCtx = null;
+    this.isPlaying = false;
+    this.currentLoop = null;
+    this.masterGain = null;
+  }
+
+  init() {
+    if (this.audioCtx) return;
+    try {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      this.masterGain = this.audioCtx.createGain();
+      this.masterGain.gain.value = 0.12;
+      this.masterGain.connect(this.audioCtx.destination);
+    } catch (e) {
+      console.warn('Web Audio API not supported for music');
+    }
+  }
+
+  playNote(freq, duration, startTime, type) {
+    if (!this.audioCtx || gameMuted) return;
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(0.08, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  }
+
+  playBassNote(freq, duration, startTime) {
+    if (!this.audioCtx || gameMuted) return;
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(0.1, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  }
+
+  playMenuMusic() {
+    this.stop();
+    if (!this.audioCtx) return;
+    this.isPlaying = true;
+
+    const melody = [
+      { note: 523, dur: 0.25 },
+      { note: 587, dur: 0.25 },
+      { note: 659, dur: 0.25 },
+      { note: 523, dur: 0.25 },
+      { note: 659, dur: 0.35 },
+      { note: 587, dur: 0.35 },
+      { note: 0, dur: 0.15 },
+      { note: 659, dur: 0.25 },
+      { note: 784, dur: 0.25 },
+      { note: 659, dur: 0.25 },
+      { note: 587, dur: 0.25 },
+      { note: 523, dur: 0.35 },
+      { note: 440, dur: 0.35 },
+    ];
+
+    const bass = [
+      { note: 131, dur: 0.5 },
+      { note: 165, dur: 0.5 },
+      { note: 175, dur: 0.5 },
+      { note: 196, dur: 0.5 },
+      { note: 220, dur: 0.5 },
+      { note: 196, dur: 0.5 },
+    ];
+
+    const playLoop = () => {
+      if (!this.isPlaying) return;
+      let time = this.audioCtx.currentTime + 0.05;
+      for (const n of melody) {
+        if (n.note > 0) this.playNote(n.note, n.dur * 0.9, time, 'square');
+        time += n.dur;
+      }
+      let bassTime = this.audioCtx.currentTime + 0.05;
+      for (const b of bass) {
+        this.playBassNote(b.note, b.dur * 0.8, bassTime);
+        bassTime += b.dur;
+      }
+      const loopLen = melody.reduce((s, n) => s + n.dur, 0);
+      this.currentLoop = setTimeout(playLoop, loopLen * 1000);
+    };
+    playLoop();
+  }
+
+  playLevelMusic(level) {
+    this.stop();
+    if (!this.audioCtx) return;
+    this.isPlaying = true;
+
+    const melodies = [
+      [
+        { note: 392, dur: 0.18 },
+        { note: 440, dur: 0.18 },
+        { note: 494, dur: 0.18 },
+        { note: 523, dur: 0.35 },
+        { note: 494, dur: 0.18 },
+        { note: 440, dur: 0.18 },
+        { note: 392, dur: 0.35 },
+        { note: 349, dur: 0.18 },
+        { note: 392, dur: 0.18 },
+        { note: 440, dur: 0.35 },
+        { note: 392, dur: 0.18 },
+        { note: 349, dur: 0.18 },
+        { note: 330, dur: 0.35 },
+      ],
+      [
+        { note: 330, dur: 0.12 },
+        { note: 370, dur: 0.12 },
+        { note: 415, dur: 0.12 },
+        { note: 440, dur: 0.25 },
+        { note: 415, dur: 0.12 },
+        { note: 370, dur: 0.12 },
+        { note: 330, dur: 0.25 },
+        { note: 294, dur: 0.12 },
+        { note: 330, dur: 0.12 },
+        { note: 370, dur: 0.25 },
+        { note: 330, dur: 0.12 },
+        { note: 294, dur: 0.12 },
+        { note: 262, dur: 0.25 },
+      ],
+      [
+        { note: 220, dur: 0.12 },
+        { note: 233, dur: 0.12 },
+        { note: 247, dur: 0.12 },
+        { note: 262, dur: 0.18 },
+        { note: 247, dur: 0.12 },
+        { note: 233, dur: 0.12 },
+        { note: 220, dur: 0.25 },
+        { note: 196, dur: 0.12 },
+        { note: 220, dur: 0.12 },
+        { note: 247, dur: 0.18 },
+        { note: 220, dur: 0.12 },
+        { note: 196, dur: 0.12 },
+        { note: 175, dur: 0.25 },
+      ]
+    ];
+
+    const bassLines = [
+      [
+        { note: 131, dur: 0.36 },
+        { note: 165, dur: 0.36 },
+        { note: 175, dur: 0.36 },
+        { note: 196, dur: 0.36 },
+        { note: 165, dur: 0.36 },
+        { note: 131, dur: 0.36 },
+      ],
+      [
+        { note: 110, dur: 0.25 },
+        { note: 131, dur: 0.25 },
+        { note: 147, dur: 0.25 },
+        { note: 165, dur: 0.25 },
+        { note: 131, dur: 0.25 },
+        { note: 110, dur: 0.25 },
+      ],
+      [
+        { note: 110, dur: 0.25 },
+        { note: 98, dur: 0.25 },
+        { note: 110, dur: 0.25 },
+        { note: 131, dur: 0.25 },
+        { note: 110, dur: 0.25 },
+        { note: 98, dur: 0.25 },
+      ]
+    ];
+
+    const melody = melodies[level] || melodies[0];
+    const bassLine = bassLines[level] || bassLines[0];
+
+    const playLoop = () => {
+      if (!this.isPlaying) return;
+      let time = this.audioCtx.currentTime + 0.05;
+      for (const n of melody) {
+        this.playNote(n.note, n.dur * 0.85, time, 'square');
+        time += n.dur;
+      }
+      let bassTime = this.audioCtx.currentTime + 0.05;
+      for (const b of bassLine) {
+        this.playBassNote(b.note, b.dur * 0.7, bassTime);
+        bassTime += b.dur;
+      }
+      const loopLen = melody.reduce((s, n) => s + n.dur, 0);
+      this.currentLoop = setTimeout(playLoop, loopLen * 1000);
+    };
+    playLoop();
+  }
+
+  stop() {
+    this.isPlaying = false;
+    if (this.currentLoop) {
+      clearTimeout(this.currentLoop);
+      this.currentLoop = null;
+    }
+  }
+}
+
+const music = new MusicManager();
+
 // ==================== PARTICLE SYSTEM ====================
 class Particle {
   constructor(x, y, color, vx, vy, size, life) {
@@ -599,6 +808,144 @@ function drawBossProjectiles() {
   }
 }
 
+// ==================== MOVING PLATFORMS ====================
+function updateMovingPlatforms() {
+  const lv = LEVELS[currentLevel];
+  if (!lv.movingPlatforms) return;
+
+  for (const mp of lv.movingPlatforms) {
+    const prevX = mp.x;
+    const prevY = mp.y;
+
+    if (mp.type === 'horizontal') {
+      mp.x += mp.speed;
+      if (mp.x >= mp.endX || mp.x <= mp.startX) mp.speed *= -1;
+    } else if (mp.type === 'vertical') {
+      mp.y += mp.speed;
+      if (mp.y >= mp.endY || mp.y <= mp.startY) mp.speed *= -1;
+    }
+
+    mp.deltaX = mp.x - prevX;
+    mp.deltaY = mp.y - prevY;
+  }
+}
+
+function drawMovingPlatforms() {
+  const lv = LEVELS[currentLevel];
+  if (!lv.movingPlatforms) return;
+
+  for (const mp of lv.movingPlatforms) {
+    ctx.fillStyle = '#4a9adb';
+    ctx.fillRect(mp.x, mp.y, mp.w, mp.h);
+    ctx.fillStyle = '#6abbeb';
+    ctx.fillRect(mp.x, mp.y, mp.w, 4);
+    ctx.fillStyle = '#3a8acb';
+    ctx.fillRect(mp.x, mp.y + mp.h - 3, mp.w, 3);
+
+    ctx.fillStyle = 'rgba(100,180,255,0.3)';
+    const arrowX = mp.x + mp.w / 2;
+    const arrowY = mp.y + mp.h / 2;
+    if (mp.type === 'horizontal') {
+      ctx.beginPath();
+      ctx.moveTo(arrowX - 6, arrowY);
+      ctx.lineTo(arrowX, arrowY - 3);
+      ctx.lineTo(arrowX, arrowY + 3);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(arrowX + 6, arrowY);
+      ctx.lineTo(arrowX, arrowY - 3);
+      ctx.lineTo(arrowX, arrowY + 3);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(arrowX, arrowY - 6);
+      ctx.lineTo(arrowX - 3, arrowY);
+      ctx.lineTo(arrowX + 3, arrowY);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(arrowX, arrowY + 6);
+      ctx.lineTo(arrowX - 3, arrowY);
+      ctx.lineTo(arrowX + 3, arrowY);
+      ctx.fill();
+    }
+  }
+}
+
+// ==================== TRAPS ====================
+function updateTraps() {
+  const lv = LEVELS[currentLevel];
+  if (!lv.traps) return;
+
+  for (const trap of lv.traps) {
+    if (trap.type === 'spike') {
+      if (aabb(player, trap) && invincibleTimer <= 0) {
+        player.hp--;
+        invincibleTimer = 60;
+        player.vy = -8;
+        sound.hurt();
+        screenShake.shake(5, 10);
+        if (player.hp <= 0) {
+          lives--;
+          if (lives <= 0) gameState = 'gameover';
+          else {
+            resetPlayer();
+            buildLevel(currentLevel);
+          }
+        }
+        updateUI();
+      }
+    } else if (trap.type === 'crumble') {
+      if (!trap.active && aabb(player, trap) && player.vy >= 0 && player.y + player.h <= trap.y + 10) {
+        trap.active = true;
+        trap.timer = 30;
+      }
+      if (trap.active) {
+        trap.timer--;
+        if (trap.timer <= 0) {
+          trap.y = 1000;
+        }
+      }
+    }
+  }
+}
+
+function drawTraps() {
+  const lv = LEVELS[currentLevel];
+  if (!lv.traps) return;
+
+  for (const trap of lv.traps) {
+    if (trap.type === 'spike') {
+      ctx.fillStyle = '#999';
+      for (let i = 0; i < trap.w; i += 8) {
+        ctx.beginPath();
+        ctx.moveTo(trap.x + i, trap.y + trap.h);
+        ctx.lineTo(trap.x + i + 4, trap.y);
+        ctx.lineTo(trap.x + i + 8, trap.y + trap.h);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#bbb';
+      for (let i = 0; i < trap.w; i += 8) {
+        ctx.beginPath();
+        ctx.moveTo(trap.x + i + 1, trap.y + trap.h);
+        ctx.lineTo(trap.x + i + 4, trap.y + 2);
+        ctx.lineTo(trap.x + i + 5, trap.y + trap.h);
+        ctx.fill();
+      }
+    } else if (trap.type === 'crumble') {
+      if (trap.y > 500) continue;
+      const alpha = trap.active ? trap.timer / 30 : 1;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#aa6633';
+      ctx.fillRect(trap.x, trap.y, trap.w, trap.h);
+      ctx.fillStyle = '#cc8844';
+      ctx.fillRect(trap.x, trap.y, trap.w, 4);
+      ctx.fillStyle = '#884422';
+      ctx.fillRect(trap.x, trap.y + trap.h - 2, trap.w, 2);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
 // ==================== GAME CONSTANTS & DATA ====================
 const GOURDS = [
   { name: '大娃', color: '#ff0000', dark: '#cc0000' },
@@ -628,6 +975,8 @@ const LEVELS = [
     platforms: [],
     enemies: [],
     bottles: [],
+    movingPlatforms: [],
+    traps: [],
     exit: null
   },
   {
@@ -637,6 +986,8 @@ const LEVELS = [
     platforms: [],
     enemies: [],
     bottles: [],
+    movingPlatforms: [],
+    traps: [],
     exit: null
   },
   {
@@ -646,6 +997,8 @@ const LEVELS = [
     platforms: [],
     enemies: [],
     bottles: [],
+    movingPlatforms: [],
+    traps: [],
     exit: null,
     bossDefeated: false
   }
@@ -658,6 +1011,8 @@ function buildLevel(idx) {
   lv.enemies = [];
   lv.bottles = [];
   lv.checkpoints = [];
+  lv.movingPlatforms = [];
+  lv.traps = [];
   lv.bossDefeated = false;
   bossProjectiles = [];
   lastCheckpoint = null;
@@ -694,6 +1049,16 @@ function buildLevel(idx) {
       { x: 20*TILE, y: (GRID-2)*TILE - 40, active: false }
     ];
     lv.exit = { x: 24*TILE, y: (GRID-2)*TILE - 40, w: 32, h: 40 };
+    lv.movingPlatforms = [
+      { x: 8*TILE, y: 12*TILE, w: TILE*3, h: TILE, startX: 8*TILE, startY: 12*TILE, endX: 16*TILE, endY: 12*TILE, speed: 1, type: 'horizontal', deltaX: 0, deltaY: 0 },
+      { x: 18*TILE, y: 8*TILE, w: TILE*2, h: TILE, startX: 18*TILE, startY: 8*TILE, endX: 18*TILE, endY: 16*TILE, speed: 0.8, type: 'vertical', deltaX: 0, deltaY: 0 },
+      { x: 3*TILE, y: 5*TILE, w: TILE*3, h: TILE, startX: 3*TILE, startY: 5*TILE, endX: 12*TILE, endY: 5*TILE, speed: 0.6, type: 'horizontal', deltaX: 0, deltaY: 0 }
+    ];
+    lv.traps = [
+      { x: 14*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' },
+      { x: 20*TILE, y: 10*TILE, w: TILE*3, h: TILE, type: 'crumble', timer: 0, active: false },
+      { x: 6*TILE, y: (GRID-1)*TILE - 8, w: TILE*3, h: 8, type: 'spike' }
+    ];
   } else if (idx === 1) {
     const pDefs = [
       [2,19],[6,17],[10,15],[14,13],[18,15],[22,17],
@@ -723,6 +1088,17 @@ function buildLevel(idx) {
       { x: 18*TILE, y: (GRID-2)*TILE - 40, active: false }
     ];
     lv.exit = { x: 24*TILE, y: (GRID-2)*TILE - 40, w: 32, h: 40 };
+    lv.movingPlatforms = [
+      { x: 3*TILE, y: 11*TILE, w: TILE*2, h: TILE, startX: 3*TILE, startY: 11*TILE, endX: 11*TILE, endY: 11*TILE, speed: 1.2, type: 'horizontal', deltaX: 0, deltaY: 0 },
+      { x: 15*TILE, y: 9*TILE, w: TILE*2, h: TILE, startX: 15*TILE, startY: 9*TILE, endX: 15*TILE, endY: 17*TILE, speed: 0.7, type: 'vertical', deltaX: 0, deltaY: 0 },
+      { x: 19*TILE, y: 6*TILE, w: TILE*2, h: TILE, startX: 19*TILE, startY: 6*TILE, endX: 24*TILE, endY: 6*TILE, speed: 0.9, type: 'horizontal', deltaX: 0, deltaY: 0 }
+    ];
+    lv.traps = [
+      { x: 10*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' },
+      { x: 22*TILE, y: 16*TILE, w: TILE*2, h: TILE, type: 'crumble', timer: 0, active: false },
+      { x: 16*TILE, y: (GRID-1)*TILE - 8, w: TILE*3, h: 8, type: 'spike' },
+      { x: 7*TILE, y: 16*TILE, w: TILE*2, h: TILE, type: 'crumble', timer: 0, active: false }
+    ];
   } else {
     const pDefs = [
       [3,20],[7,18],[12,16],[17,18],[22,16],
@@ -757,6 +1133,16 @@ function buildLevel(idx) {
       { x: 16*TILE, y: (GRID-2)*TILE - 40, active: false }
     ];
     lv.exit = { x: 24*TILE, y: 3*TILE, w: 32, h: 40 };
+    lv.movingPlatforms = [
+      { x: 5*TILE, y: 13*TILE, w: TILE*2, h: TILE, startX: 5*TILE, startY: 13*TILE, endX: 14*TILE, endY: 13*TILE, speed: 1.1, type: 'horizontal', deltaX: 0, deltaY: 0 },
+      { x: 19*TILE, y: 10*TILE, w: TILE*2, h: TILE, startX: 19*TILE, startY: 10*TILE, endX: 19*TILE, endY: 18*TILE, speed: 0.9, type: 'vertical', deltaX: 0, deltaY: 0 }
+    ];
+    lv.traps = [
+      { x: 12*TILE, y: (GRID-1)*TILE - 8, w: TILE*3, h: 8, type: 'spike' },
+      { x: 16*TILE, y: 16*TILE, w: TILE*2, h: TILE, type: 'crumble', timer: 0, active: false },
+      { x: 3*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' },
+      { x: 20*TILE, y: 12*TILE, w: TILE*2, h: TILE, type: 'crumble', timer: 0, active: false }
+    ];
   }
 }
 
@@ -811,6 +1197,8 @@ function startGame(charIdx) {
   comboCounter = 0;
   comboTimer = 0;
   floatingTexts = [];
+  music.init();
+  music.playLevelMusic(currentLevel);
   updateUI();
 }
 
@@ -830,6 +1218,7 @@ function handleDeath() {
     resetPlayer();
     buildLevel(currentLevel);
   } else {
+    music.stop();
     gameState = 'gameover';
   }
   updateUI();
@@ -944,6 +1333,17 @@ function updatePlayer() {
   for (const p of lv.platforms) {
     if (aabb(player, p)) {
       resolveCollision(player, p);
+    }
+  }
+
+  for (const mp of lv.movingPlatforms || []) {
+    if (aabb(player, mp) && player.vy >= 0) {
+      if (player.y + player.h <= mp.y + 10) {
+        player.x += mp.deltaX || 0;
+        player.y = mp.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      }
     }
   }
 
@@ -1121,9 +1521,11 @@ function updatePlayer() {
       if (lives < 3) lives++;
       buildLevel(currentLevel);
       resetPlayer();
+      music.playLevelMusic(currentLevel);
       updateUI();
     } else if (currentLevel === 2 && lv.bossDefeated) {
       sound.victory();
+      music.stop();
       gameState = 'victory';
     }
   }
@@ -1767,6 +2169,8 @@ function gameLoop(timestamp) {
     drawMenu();
   } else if (gameState === 'playing') {
     if (!gamePaused) {
+      updateMovingPlatforms();
+      updateTraps();
       updatePlayer();
       updateEnemies();
       updateBossProjectiles();
@@ -1783,6 +2187,8 @@ function gameLoop(timestamp) {
     screenShake.apply(ctx);
     drawBackground();
     drawPlatforms();
+    drawMovingPlatforms();
+    drawTraps();
     drawCheckpoints();
     drawBottles();
     drawExit();
@@ -1834,12 +2240,17 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Escape') {
     if (gameState === 'playing') {
       gamePaused = !gamePaused;
+      if (gamePaused) music.stop();
+      else music.playLevelMusic(currentLevel);
     }
   }
 
   // M - Mute/Unmute
   if (e.code === 'KeyM') {
     sound.toggle();
+    if (gameMuted) music.stop();
+    else if (gameState === 'menu') music.playMenuMusic();
+    else if (gameState === 'playing' && !gamePaused) music.playLevelMusic(currentLevel);
   }
 
   // F1 - Debug mode
@@ -1851,12 +2262,14 @@ document.addEventListener('keydown', (e) => {
   // R - Restart
   if (e.code === 'KeyR') {
     if (gameState === 'gameover' || gameState === 'victory') {
+      music.stop();
       gameState = 'menu';
       score = 0;
       comboCounter = 0;
       comboTimer = 0;
       floatingTexts = [];
       particleSystem.particles = [];
+      music.playMenuMusic();
     } else if (gameState === 'playing') {
       resetPlayer();
       buildLevel(currentLevel);
@@ -1888,6 +2301,8 @@ document.addEventListener('keyup', (e) => {
 
 // ==================== START ====================
 updateUI();
+music.init();
+music.playMenuMusic();
 gameLoop(performance.now());
 </script>
 </body>
