@@ -1204,14 +1204,6 @@ function buildLevel(idx) {
       { x: 16*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' }
     ];
   } else if (idx === 1) {
-    const pDefs = [
-      [2,19],[6,17],[10,15],[14,13],[18,15],[22,17],
-      [1,14],[5,12],[9,10],[13,8],[17,10],[21,12],
-      [4,7],[8,5],[14,6],[20,5]
-    ];
-    pDefs.forEach(([gx,gy]) => {
-      lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*3, h: TILE });
-    });
     // 第2关：中等难度
     const pDefs = [
       // 阶梯式上升
