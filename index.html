@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>葫芦娃闯关</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a2e;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Courier New', monospace;
+  color: #eee;
+  overflow: hidden;
+}
+#gameCanvas {
+  border: 3px solid #555;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+#ui {
+  width: 832px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 16px;
+}
+#ui span { text-shadow: 1px 1px 2px #000; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <span id="hpDisplay">❤❤❤❤❤</span>
+  <span id="scoreDisplay">分数: 0</span>
+  <span id="levelDisplay">第1关: 森林冒险</span>
+</div>
+<canvas id="gameCanvas" width="832" height="832"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const TILE = 32;
+const GRID = 26;
+const W = 832, H = 832;
+const GRAVITY = 0.6;
+const FRICTION = 0.8;
+const JUMP_FORCE = -12;
+const ENEMY_SPEED = 1.5;
+const BAT_SPEED = 2;
+
+let gameState = 'menu';
+let currentChar = 0;
+let score = 0;
+let currentLevel = 0;
+let keys = {};
+let invincibleTimer = 0;
+let frameCount = 0;
+let gamePaused = false;
+let gameMuted = false;
+let debugMode = false;
+let lastFrameTime = performance.now();
+let fps = 0;
+let fpsTimer = 0;
+let fpsCount = 0;
+
+// ==================== PIXEL ART SYSTEM ====================
+const PIXEL_COLORS = {
+  '_': null,
+  'R': '#ff0000', 'r': '#cc0000',
+  'O': '#ff8c00', 'o': '#cc7000',
+  'Y': '#ffd700', 'y': '#ccac00',
+  'G': '#00cc00', 'g': '#009900',
+  'C': '#00cccc', 'c': '#009999',
+  'B': '#0066ff', 'b': '#0044cc',
+  'P': '#9933ff', 'p': '#7700cc',
+  'W': '#ffffff', 'w': '#cccccc',
+  'K': '#000000', 'k': '#333333',
+  'F': '#ff4444', 'f': '#880000',
+  'n': '#ffccaa', 'N': '#ffaa88',
+  'S': '#44aa44', 's': '#228822',
+  'D': '#8a4a0a', 'd': '#6a3a0a',
+  'M': '#aa6a2a', 'm': '#884400',
+  'E': '#ff0', 'e': '#f00',
+  'T': '#ff6666', 't': '#cc3333',
+  'L': '#aaddff', 'l': '#88bbdd',
+  'Z': '#9933ff', 'z': '#6600cc',
+};
+
+const SPRITE_GOURD = [
+  '____RRRR____',
+  '___RRRRRR___',
+  '__RRRRRRRR__',
+  '_RWRKRKRKWR_',
+  '_RRRRRRRRRR_',
+  '__RRRRRRRR__',
+  '__RRRRRRRR__',
+  '___RRRRRR___',
+  '___RRRRRR___',
+  '___rrrrrr___',
+  '___rrrrrr___',
+  '__nnnnnnnn__',
+  '__nnnnnnnn__',
+  '__nnnnnnnn__',
+  '___nnnnnn___',
+  '___nnnnnn___',
+  '___kk__kk___',
+  '___kk__kk___',
+];
+
+const SPRITE_SNAKE = [
+  '_sss_______',
+  'ssSSss_____',
+  'sSSESSs____',
+  'sSSSSSSs___',
+  '_sSSSSSs___',
+  '__sSSSSs___',
+  '__sSSSSs___',
+  '_sSSSSSs___',
+  'sSSSSSSs___',
+  'sSSSSSSs___',
+  '_sSSSSs____',
+  '__sSSs_____',
+  '___ss______',
+  '____f______',
+];
+
+const SPRITE_SCORPION = [
+  '_____DD____',
+  '____DDDD___',
+  '___DDDDDD__',
+  '__DDDDDDDD_',
+  '_DDMDDDDDD_',
+  '_DDDDDDDDDD',
+  '_DDDDDDDDDD',
+  '__DDDDDDDD_',
+  '__DDEDDDDD_',
+  '___DDDDDD__',
+  '____DDDD___',
+  '____DDDD___',
+  '___dd__dd__',
+  '___dd__dd__',
+];
+
+const SPRITE_BAT = [
+  '____DDDD____',
+  '___DDDDDD___',
+  '___DDEEDED___',
+  '___DDDDDDD___',
+  '__DDDDDDDDD__',
+  '_DDDDDDDDDD_',
+  'DDDDDDDDDDDDD',
+  'DDDDD__DDDDDD',
+  'DDDD____DDDDD',
+  'D_D______D_D_',
+];
+
+const SPRITE_BOSS = [
+  '______ZZZZ______',
+  '_____ZZZZZZ_____',
+  '____ZZZZZZZZ____',
+  '___ZZZZZZZZZZ___',
+  '__ZZZZZZZZZZZZ__',
+  '__ZZZZZZZZZZZZ__',
+  '_ZZEEZZZZZEEZZ_',
+  '_ZZZZZZZZZZZZZ_',
+  '_ZZZKKKKKKKZZZ_',
+  '_ZZZZZZZZZZZZ_',
+  '__ZZZTTTTTZZZ__',
+  '__ZZZTTTTTZZZ__',
+  '__ZZZZZZZZZZZ__',
+  '___ZZZZZZZZZ___',
+  '___ZZZZZZZZZ___',
+  '____ZZZZZZZ____',
+  '____ZZZZZZZ____',
+  '_____ZZZZZ_____',
+  '_____ZZZZZ_____',
+];
+
+const SPRITE_BOTTLE = [
+  '__YYYY__',
+  '__YYYY__',
+  '_YYYYYY_',
+  '_GGGGGG_',
+  '_GGGGGG_',
+  '_GWWGGG_',
+  '_GWWGGG_',
+  '_GGGGGG_',
+  '_GGGGGG_',
+  '__GGGG__',
+];
+
+function drawPixelArt(ctx, x, y, pixelData, scale) {
+  const rows = pixelData.length;
+  const cols = pixelData[0].length;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const ch = pixelData[r][c];
+      if (ch === '_') continue;
+      const color = PIXEL_COLORS[ch];
+      if (!color) continue;
+      ctx.fillStyle = color;
+      ctx.fillRect(x + c * scale, y + r * scale, scale, scale);
+    }
+  }
+}
+
+// ==================== SOUND MANAGER (Web Audio API) ====================
+class SoundManager {
+  constructor() {
+    this.audioCtx = null;
+    this.muted = false;
+    this.initialized = false;
+  }
+
+  init() {
+    if (this.initialized) return;
+    try {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      this.initialized = true;
+    } catch (e) {
+      console.warn('Web Audio API not supported');
+    }
+  }
+
+  toggle() {
+    this.muted = !this.muted;
+    gameMuted = this.muted;
+  }
+
+  playTone(frequency, duration, type, freqEnd, volume) {
+    if (this.muted || !this.initialized) return;
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(frequency, this.audioCtx.currentTime);
+    if (freqEnd) {
+      osc.frequency.linearRampToValueAtTime(freqEnd, this.audioCtx.currentTime + duration);
+    }
+    gain.gain.setValueAtTime(volume || 0.15, this.audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(this.audioCtx.destination);
+    osc.start(this.audioCtx.currentTime);
+    osc.stop(this.audioCtx.currentTime + duration);
+  }
+
+  jump() {
+    this.playTone(200, 0.15, 'square', 600, 0.12);
+  }
+
+  collect() {
+    this.playTone(500, 0.08, 'sine', 1200, 0.15);
+    setTimeout(() => this.playTone(800, 0.1, 'sine', 1600, 0.12), 80);
+  }
+
+  hurt() {
+    this.playTone(400, 0.2, 'square', 100, 0.15);
+  }
+
+  killEnemy() {
+    this.playTone(300, 0.1, 'square', 800, 0.15);
+    setTimeout(() => this.playTone(600, 0.1, 'square', 1200, 0.1), 100);
+  }
+
+  bossHurt() {
+    this.playTone(200, 0.15, 'sawtooth', 500, 0.18);
+  }
+
+  victory() {
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((freq, i) => {
+      setTimeout(() => this.playTone(freq, 0.3, 'square', freq, 0.15), i * 150);
+    });
+  }
+
+  bossDefeat() {
+    for (let i = 0; i < 6; i++) {
+      setTimeout(() => this.playTone(200 + i * 100, 0.2, 'sawtooth', 100 + i * 50, 0.2), i * 80);
+    }
+  }
+}
+
+const sound = new SoundManager();
+
+// ==================== PARTICLE SYSTEM ====================
+class Particle {
+  constructor(x, y, color, vx, vy, size, life) {
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    this.vx = vx;
+    this.vy = vy;
+    this.size = size;
+    this.life = life;
+    this.maxLife = life;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += 0.1;
+    this.life--;
+  }
+
+  draw(ctx) {
+    const alpha = this.life / this.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+    ctx.globalAlpha = 1;
+  }
+}
+
+class ParticleSystem {
+  constructor() {
+    this.particles = [];
+  }
+
+  emit(x, y, count, colors, opts) {
+    const speed = (opts && opts.speed) || 4;
+    const size = (opts && opts.size) || 4;
+    const life = (opts && opts.life) || 30;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const spd = Math.random() * speed + 1;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      this.particles.push(new Particle(
+        x, y, color,
+        Math.cos(angle) * spd,
+        Math.sin(angle) * spd - 2,
+        size + Math.random() * 2,
+        life + Math.random() * 15
+      ));
+    }
+  }
+
+  emitExplosion(x, y) {
+    this.emit(x, y, 30, ['#ff0000', '#ff4444', '#ff8800', '#ffcc00', '#ffffff'], { speed: 6, size: 5, life: 40 });
+  }
+
+  emitCollect(x, y) {
+    this.emit(x, y, 20, ['#ffd700', '#ffee44', '#ffffff', '#ffaa00'], { speed: 3, size: 3, life: 25 });
+  }
+
+  emitBossHit(x, y) {
+    this.emit(x, y, 25, ['#9933ff', '#bb55ff', '#7700cc', '#ffffff', '#ff44ff'], { speed: 5, size: 4, life: 35 });
+  }
+
+  emitVictory(x, y) {
+    this.emit(x, y, 50, ['#ffd700', '#ff0000', '#00ff00', '#00ccff', '#ff00ff', '#ffffff'], { speed: 8, size: 5, life: 60 });
+  }
+
+  update() {
+    this.particles = this.particles.filter(p => {
+      p.update();
+      return p.life > 0;
+    });
+  }
+
+  draw(ctx) {
+    this.particles.forEach(p => p.draw(ctx));
+  }
+}
+
+const particleSystem = new ParticleSystem();
+
+// ==================== SCREEN SHAKE ====================
+class ScreenShake {
+  constructor() {
+    this.intensity = 0;
+    this.duration = 0;
+    this.timer = 0;
+    this.offsetX = 0;
+    this.offsetY = 0;
+  }
+
+  shake(intensity, duration) {
+    this.intensity = Math.max(this.intensity, intensity);
+    this.duration = Math.max(this.duration, duration);
+    this.timer = this.duration;
+  }
+
+  update() {
+    if (this.timer > 0) {
+      this.timer--;
+      const progress = this.timer / this.duration;
+      const currentIntensity = this.intensity * progress;
+      this.offsetX = (Math.random() - 0.5) * currentIntensity * 2;
+      this.offsetY = (Math.random() - 0.5) * currentIntensity * 2;
+    } else {
+      this.offsetX = 0;
+      this.offsetY = 0;
+      this.intensity = 0;
+    }
+  }
+
+  apply(ctx) {
+    if (this.timer > 0) {
+      ctx.save();
+      ctx.translate(this.offsetX, this.offsetY);
+    }
+  }
+
+  restore(ctx) {
+    if (this.timer > 0) {
+      ctx.restore();
+    }
+  }
+}
+
+const screenShake = new ScreenShake();
+
+// ==================== BOSS PROJECTILES ====================
+let bossProjectiles = [];
+
+function updateBossProjectiles() {
+  bossProjectiles = bossProjectiles.filter(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    return p.life > 0 && p.x > 0 && p.x < W && p.y > 0 && p.y < H;
+  });
+}
+
+function drawBossProjectiles() {
+  for (const p of bossProjectiles) {
+    ctx.fillStyle = '#ff00ff';
+    ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
+    ctx.fillStyle = '#ff88ff';
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+}
+
+// ==================== GAME CONSTANTS & DATA ====================
+const GOURDS = [
+  { name: '大娃', color: '#ff0000', dark: '#cc0000' },
+  { name: '二娃', color: '#ff8c00', dark: '#cc7000' },
+  { name: '三娃', color: '#ffd700', dark: '#ccac00' },
+  { name: '四娃', color: '#00cc00', dark: '#009900' },
+  { name: '五娃', color: '#00cccc', dark: '#009999' },
+  { name: '六娃', color: '#0066ff', dark: '#0044cc' },
+  { name: '七娃', color: '#9933ff', dark: '#7700cc' }
+];
+
+const LEVELS = [
+  {
+    name: '森林冒险',
+    bg: '#2d5a1e',
+    bgColorTop: '#1a3a0e',
+    platforms: [],
+    enemies: [],
+    bottles: [],
+    exit: null
+  },
+  {
+    name: '翻山越岭',
+    bg: '#5a3a1e',
+    bgColorTop: '#3a2a0e',
+    platforms: [],
+    enemies: [],
+    bottles: [],
+    exit: null
+  },
+  {
+    name: '蛇精洞府',
+    bg: '#1a1a2e',
+    bgColorTop: '#0a0a1e',
+    platforms: [],
+    enemies: [],
+    bottles: [],
+    exit: null,
+    bossDefeated: false
+  }
+];
+
+// ==================== LEVEL BUILDER ====================
+function buildLevel(idx) {
+  const lv = LEVELS[idx];
+  lv.platforms = [];
+  lv.enemies = [];
+  lv.bottles = [];
+  lv.bossDefeated = false;
+  bossProjectiles = [];
+
+  for (let x = 0; x < GRID; x++) {
+    lv.platforms.push({ x: x * TILE, y: (GRID - 1) * TILE, w: TILE, h: TILE });
+  }
+
+  if (idx === 0) {
+    const pDefs = [
+      [3,18],[7,16],[12,14],[17,16],[21,13],
+      [5,12],[10,10],[15,12],[20,10],
+      [3,8],[9,6],[14,8],[19,6],[23,8]
+    ];
+    pDefs.forEach(([gx,gy]) => {
+      lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*3, h: TILE });
+    });
+    const eDefs = [
+      [8*TILE, (GRID-2)*TILE, 'snake'],
+      [15*TILE, (GRID-2)*TILE, 'snake'],
+      [20*TILE, (GRID-2)*TILE, 'scorpion'],
+      [10*TILE, 9*TILE, 'snake'],
+      [18*TILE, 11*TILE, 'scorpion']
+    ];
+    eDefs.forEach(([ex,ey,type]) => {
+      lv.enemies.push({ x: ex, y: ey, w: 28, h: 24, type, vx: type==='scorpion'?-1:-ENEMY_SPEED, alive: true });
+    });
+    const bDefs = [[4*TILE,17*TILE],[11*TILE,13*TILE],[18*TILE,15*TILE],[9*TILE,5*TILE],[21*TILE,9*TILE]];
+    bDefs.forEach(([bx,by]) => {
+      lv.bottles.push({ x: bx, y: by, w: 20, h: 24, collected: false });
+    });
+    lv.exit = { x: 24*TILE, y: (GRID-2)*TILE - 40, w: 32, h: 40 };
+  } else if (idx === 1) {
+    const pDefs = [
+      [2,19],[6,17],[10,15],[14,13],[18,15],[22,17],
+      [1,14],[5,12],[9,10],[13,8],[17,10],[21,12],
+      [4,7],[8,5],[14,6],[20,5]
+    ];
+    pDefs.forEach(([gx,gy]) => {
+      lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*2, h: TILE });
+    });
+    const eDefs = [
+      [6*TILE,(GRID-2)*TILE,'snake'],
+      [14*TILE,(GRID-2)*TILE,'bat'],
+      [22*TILE,(GRID-2)*TILE,'snake'],
+      [9*TILE,9*TILE,'bat'],
+      [17*TILE,9*TILE,'snake'],
+      [5*TILE,11*TILE,'bat']
+    ];
+    eDefs.forEach(([ex,ey,type]) => {
+      lv.enemies.push({ x: ex, y: ey, w: 28, h: 24, type, vx: type==='bat'?BAT_SPEED:-ENEMY_SPEED, vy: type==='bat'?1:0, alive: true, baseY: ey });
+    });
+    const bDefs = [[3*TILE,18*TILE],[11*TILE,14*TILE],[19*TILE,14*TILE],[6*TILE,11*TILE],[13*TILE,7*TILE]];
+    bDefs.forEach(([bx,by]) => {
+      lv.bottles.push({ x: bx, y: by, w: 20, h: 24, collected: false });
+    });
+    lv.exit = { x: 24*TILE, y: (GRID-2)*TILE - 40, w: 32, h: 40 };
+  } else {
+    const pDefs = [
+      [3,20],[7,18],[12,16],[17,18],[22,16],
+      [5,14],[10,12],[15,14],[20,12],
+      [2,10],[8,8],[13,10],[18,8],[23,10],
+      [6,6],[12,5],[18,4]
+    ];
+    pDefs.forEach(([gx,gy]) => {
+      lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*2, h: TILE });
+    });
+    lv.enemies.push({
+      x: 20*TILE, y: 3*TILE, w: 48, h: 48,
+      type: 'boss', vx: -1, alive: true, hp: 3, maxHp: 3, flashTimer: 0,
+      shootTimer: 0, shootInterval: 90
+    });
+    const eDefs = [
+      [5*TILE,(GRID-2)*TILE,'snake'],
+      [10*TILE,(GRID-2)*TILE,'scorpion'],
+      [16*TILE,(GRID-2)*TILE,'snake'],
+      [8*TILE,7*TILE,'bat'],
+      [13*TILE,9*TILE,'snake']
+    ];
+    eDefs.forEach(([ex,ey,type]) => {
+      lv.enemies.push({ x: ex, y: ey, w: 28, h: 24, type, vx: type==='bat'?BAT_SPEED:-ENEMY_SPEED, vy: type==='bat'?1:0, alive: true, baseY: ey });
+    });
+    const bDefs = [[4*TILE,19*TILE],[11*TILE,15*TILE],[19*TILE,17*TILE],[9*TILE,11*TILE],[21*TILE,11*TILE],[13*TILE,4*TILE]];
+    bDefs.forEach(([bx,by]) => {
+      lv.bottles.push({ x: bx, y: by, w: 20, h: 24, collected: false });
+    });
+    lv.exit = { x: 24*TILE, y: 3*TILE, w: 32, h: 40 };
+  }
+}
+
+// ==================== PLAYER ====================
+let player = {
+  x: 2*TILE, y: (GRID-2)*TILE - 48, w: 24, h: 48,
+  vx: 0, vy: 0, hp: 5, maxHp: 5,
+  onGround: false, facing: 1, specialCooldown: 0
+};
+
+function resetPlayer() {
+  player.x = 2 * TILE;
+  player.y = (GRID - 2) * TILE - 48;
+  player.vx = 0;
+  player.vy = 0;
+  player.hp = player.maxHp;
+  player.onGround = false;
+  player.specialCooldown = 0;
+  invincibleTimer = 0;
+}
+
+function startGame(charIdx) {
+  currentChar = charIdx;
+  currentLevel = 0;
+  score = 0;
+  buildLevel(0);
+  resetPlayer();
+  gameState = 'playing';
+  gamePaused = false;
+  particleSystem.particles = [];
+  bossProjectiles = [];
+  updateUI();
+}
+
+function restartGame() {
+  if (gameState === 'menu') return;
+  if (gameState === 'playing') {
+    resetPlayer();
+    buildLevel(currentLevel);
+  } else {
+    gameState = 'menu';
+  }
+}
+
+function updateUI() {
+  let hpStr = '';
+  for (let i = 0; i < player.maxHp; i++) {
+    hpStr += i < player.hp ? '❤' : '🖤';
+  }
+  document.getElementById('hpDisplay').textContent = hpStr;
+  document.getElementById('scoreDisplay').textContent = '分数: ' + score;
+  const lvNames = ['森林冒险','翻山越岭','蛇精洞府'];
+  document.getElementById('levelDisplay').textContent = '第' + (currentLevel+1) + '关: ' + lvNames[currentLevel];
+}
+
+// ==================== COLLISION ====================
+function aabb(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function resolveCollision(entity, plat) {
+  const overlapX = Math.min(entity.x + entity.w - plat.x, plat.x + plat.w - entity.x);
+  const overlapY = Math.min(entity.y + entity.h - plat.y, plat.y + plat.h - entity.y);
+  if (overlapX < overlapY) {
+    if (entity.x + entity.w / 2 < plat.x + plat.w / 2) {
+      entity.x = plat.x - entity.w;
+    } else {
+      entity.x = plat.x + plat.w;
+    }
+    entity.vx = 0;
+  } else {
+    if (entity.y + entity.h / 2 < plat.y + plat.h / 2) {
+      entity.y = plat.y - entity.h;
+      entity.vy = 0;
+      entity.onGround = true;
+    } else {
+      entity.y = plat.y + plat.h;
+      entity.vy = 0;
+    }
+  }
+}
+
+// ==================== UPDATE PLAYER ====================
+function updatePlayer() {
+  let dx = 0;
+  if (keys['KeyA'] || keys['ArrowLeft']) { dx = -1; player.facing = -1; }
+  if (keys['KeyD'] || keys['ArrowRight']) { dx = 1; player.facing = 1; }
+  // S键减速/蹲下
+  const speedMult = keys['KeyS'] ? 0.4 : 1;
+  player.vx = dx * 5 * FRICTION * speedMult;
+
+  if ((keys['KeyG'] || keys['KeyW'] || keys['ArrowUp'] || keys['Space']) && player.onGround) {
+    player.vy = JUMP_FORCE;
+    player.onGround = false;
+    sound.jump();
+  }
+
+  // K键特殊技能：短暂加速冲刺
+  if (keys['KeyK'] && !player.specialCooldown) {
+    player.vx = player.facing * 12;
+    player.specialCooldown = 30;
+    sound.hurt();
+  }
+  if (player.specialCooldown > 0) player.specialCooldown--;
+
+  player.vy += GRAVITY;
+  if (player.vy > 15) player.vy = 15;
+  player.x += player.vx;
+  player.y += player.vy;
+
+  const lv = LEVELS[currentLevel];
+  player.onGround = false;
+
+  for (const p of lv.platforms) {
+    if (aabb(player, p)) {
+      resolveCollision(player, p);
+    }
+  }
+
+  if (player.x < 0) { player.x = 0; player.vx = 0; }
+  if (player.x + player.w > W) { player.x = W - player.w; player.vx = 0; }
+  if (player.y > H) {
+    player.hp = 0;
+  }
+  if (player.y < 0) { player.y = 0; player.vy = 0; }
+
+  if (invincibleTimer > 0) invincibleTimer--;
+
+  // Boss projectiles hit player
+  for (const bp of bossProjectiles) {
+    if (aabb(player, { x: bp.x - 4, y: bp.y - 4, w: 8, h: 8 })) {
+      if (invincibleTimer <= 0) {
+        player.hp--;
+        invincibleTimer = 60;
+        player.vy = -6;
+        bp.life = 0;
+        sound.hurt();
+        screenShake.shake(6, 10);
+        if (player.hp <= 0) gameState = 'gameover';
+        updateUI();
+      }
+    }
+  }
+
+  // Enemy collision
+  for (const e of lv.enemies) {
+    if (!e.alive) continue;
+    if (!aabb(player, e)) continue;
+
+    const playerBottom = player.y + player.h;
+    const enemyTop = e.y;
+    const falling = player.vy > 0;
+
+    if (falling && playerBottom - enemyTop < 20) {
+      if (e.type === 'boss') {
+        e.hp--;
+        e.flashTimer = 10;
+        e.shootTimer = 0;
+        player.vy = JUMP_FORCE * 0.7;
+        sound.bossHurt();
+        screenShake.shake(10, 15);
+        particleSystem.emitBossHit(e.x + e.w / 2, e.y + e.h / 2);
+        if (e.hp <= 0) {
+          e.alive = false;
+          score += 500;
+          particleSystem.emitVictory(e.x + e.w / 2, e.y + e.h / 2);
+          screenShake.shake(15, 25);
+          sound.bossDefeat();
+          lv.bossDefeated = true;
+        }
+        score += 100;
+      } else {
+        e.alive = false;
+        player.vy = JUMP_FORCE * 0.7;
+        score += 100;
+        sound.killEnemy();
+        particleSystem.emitExplosion(e.x + e.w / 2, e.y + e.h / 2);
+        screenShake.shake(3, 5);
+      }
+    } else if (invincibleTimer <= 0) {
+      player.hp--;
+      invincibleTimer = 60;
+      player.vx = (player.x < e.x) ? -6 : 6;
+      player.vy = -6;
+      sound.hurt();
+      screenShake.shake(5, 12);
+      if (player.hp <= 0) gameState = 'gameover';
+    }
+    updateUI();
+  }
+
+  // Bottle collection
+  for (const b of lv.bottles) {
+    if (b.collected) continue;
+    if (aabb(player, b)) {
+      b.collected = true;
+      if (player.hp < player.maxHp) player.hp++;
+      score += 50;
+      sound.collect();
+      particleSystem.emitCollect(b.x + b.w / 2, b.y + b.h / 2);
+      updateUI();
+    }
+  }
+
+  // Exit check (only if boss defeated in level 2)
+  if (lv.exit && aabb(player, lv.exit)) {
+    if (currentLevel === 2 && !lv.bossDefeated) {
+      // Cannot exit until boss is defeated
+    } else if (currentLevel < 2) {
+      currentLevel++;
+      buildLevel(currentLevel);
+      resetPlayer();
+      updateUI();
+    } else if (currentLevel === 2 && lv.bossDefeated) {
+      sound.victory();
+      gameState = 'victory';
+    }
+  }
+}
+
+// ==================== UPDATE ENEMIES ====================
+function updateEnemies() {
+  const lv = LEVELS[currentLevel];
+  for (const e of lv.enemies) {
+    if (!e.alive) continue;
+    if (e.type === 'boss') {
+      if (e.flashTimer > 0) e.flashTimer--;
+      e.x += e.vx;
+      if (e.x < 14*TILE || e.x + e.w > 25*TILE) e.vx *= -1;
+
+      // Boss shooting
+      e.shootTimer++;
+      if (e.shootTimer >= e.shootInterval) {
+        e.shootTimer = 0;
+        const dx = player.x - (e.x + e.w / 2);
+        const dy = player.y - (e.y + e.h / 2);
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const speed = 3;
+        bossProjectiles.push({
+          x: e.x + e.w / 2,
+          y: e.y + e.h,
+          vx: (dx / dist) * speed,
+          vy: (dy / dist) * speed,
+          life: 120
+        });
+      }
+      continue;
+    }
+    if (e.type === 'bat') {
+      e.x += e.vx;
+      e.y = e.baseY + Math.sin(frameCount * 0.05) * 40;
+      if (e.x < 0 || e.x + e.w > W) e.vx *= -1;
+    } else {
+      e.x += e.vx;
+      let blocked = false;
+      for (const p of lv.platforms) {
+        if (aabb({ x: e.x, y: e.y, w: e.w, h: e.h }, p)) {
+          blocked = true;
+          break;
+        }
+      }
+      let edgeCheck = { x: (e.vx > 0 ? e.x + e.w + 2 : e.x - 2), y: e.y + e.h + 2, w: e.w, h: 4 };
+      let onEdge = false;
+      for (const p of lv.platforms) {
+        if (aabb(edgeCheck, p)) { onEdge = true; break; }
+      }
+      if (!onEdge) e.vx *= -1;
+      if (blocked) e.vx *= -1;
+
+      if (e.x < 0) { e.x = 0; e.vx = Math.abs(e.vx); }
+      if (e.x + e.w > W) { e.x = W - e.w; e.vx = -Math.abs(e.vx); }
+    }
+  }
+}
+
+// ==================== DRAWING FUNCTIONS ====================
+function drawBackground() {
+  const lv = LEVELS[currentLevel];
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, lv.bgColorTop);
+  grad.addColorStop(1, lv.bg);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  if (currentLevel === 0) {
+    ctx.fillStyle = '#1a4a0e';
+    for (let i = 0; i < 8; i++) {
+      const tx = i * 110 + 20;
+      ctx.fillRect(tx + 8, H - 160, 8, 120);
+      ctx.beginPath();
+      ctx.moveTo(tx - 20, H - 140);
+      ctx.lineTo(tx + 12, H - 220);
+      ctx.lineTo(tx + 44, H - 140);
+      ctx.fill();
+    }
+  } else if (currentLevel === 1) {
+    ctx.fillStyle = '#3a2a0e';
+    for (let i = 0; i < 5; i++) {
+      const mx = i * 180;
+      ctx.beginPath();
+      ctx.moveTo(mx, H - 100);
+      ctx.lineTo(mx + 90, H - 260);
+      ctx.lineTo(mx + 180, H - 100);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#e8e8e8';
+    for (let i = 0; i < 5; i++) {
+      const mx = i * 180;
+      ctx.beginPath();
+      ctx.moveTo(mx + 60, H - 220);
+      ctx.lineTo(mx + 90, H - 260);
+      ctx.lineTo(mx + 120, H - 220);
+      ctx.fill();
+    }
+  } else {
+    ctx.fillStyle = '#0a0a1e';
+    for (let i = 0; i < 12; i++) {
+      const sx = i * 72;
+      const sh = 40 + Math.sin(i * 1.7) * 30;
+      ctx.beginPath();
+      ctx.moveTo(sx, 0);
+      ctx.lineTo(sx + 16, sh);
+      ctx.lineTo(sx + 32, 0);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(100,200,255,0.3)';
+    for (let i = 0; i < 15; i++) {
+      const gx = (i * 57 + 10) % W;
+      const gy = (i * 43 + 30) % (H - 100);
+      ctx.beginPath();
+      ctx.arc(gx, gy, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawPlatforms() {
+  const lv = LEVELS[currentLevel];
+  for (const p of lv.platforms) {
+    if (p.y >= (GRID - 1) * TILE) {
+      ctx.fillStyle = currentLevel === 0 ? '#4a7a2a' : currentLevel === 1 ? '#8a6a3a' : '#3a3a5a';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      ctx.fillStyle = currentLevel === 0 ? '#5a8a3a' : currentLevel === 1 ? '#9a7a4a' : '#4a4a6a';
+      ctx.fillRect(p.x, p.y, p.w, 4);
+      continue;
+    }
+    ctx.fillStyle = currentLevel === 0 ? '#6a4a2a' : currentLevel === 1 ? '#7a5a2a' : '#4a4a6a';
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.fillStyle = currentLevel === 0 ? '#8a6a3a' : currentLevel === 1 ? '#9a7a3a' : '#6a6a8a';
+    ctx.fillRect(p.x, p.y, p.w, 4);
+    if (currentLevel === 0) {
+      ctx.fillStyle = '#5aaa3a';
+      ctx.fillRect(p.x, p.y - 3, p.w, 6);
+    }
+  }
+}
+
+function drawPlayer() {
+  const g = GOURDS[currentChar];
+  const px = Math.round(player.x);
+  const py = Math.round(player.y);
+
+  if (invincibleTimer > 0 && Math.floor(invincibleTimer / 4) % 2 === 0) return;
+
+  ctx.save();
+  if (player.facing < 0) {
+    ctx.translate(px + player.w / 2, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-(px + player.w / 2), 0);
+  }
+
+  const scale = 2;
+  const spriteX = px - 12;
+  const spriteY = py - 8;
+
+  // 根据角色颜色动态替换精灵中的红色
+  const charSprite = SPRITE_GOURD.map(row =>
+    row.replace(/R/g, g.color[1] === 'f' ? 'R' : 'R').replace(/r/g, 'r')
+  );
+
+  // 使用临时颜色映射绘制角色精灵
+  const tempColors = { ...PIXEL_COLORS };
+  tempColors['R'] = g.color;
+  tempColors['r'] = g.dark;
+  
+  charSprite.forEach((row, rowIndex) => {
+    row.split('').forEach((pixel, colIndex) => {
+      if (pixel !== '_' && tempColors[pixel]) {
+        ctx.fillStyle = tempColors[pixel];
+        ctx.fillRect(spriteX + colIndex * scale, spriteY + rowIndex * scale, scale, scale);
+      }
+    });
+  });
+
+  ctx.restore();
+}
+
+function drawEnemies() {
+  const lv = LEVELS[currentLevel];
+  for (const e of lv.enemies) {
+    if (!e.alive) continue;
+    const ex = Math.round(e.x), ey = Math.round(e.y);
+
+    if (e.type === 'snake') {
+      const scale = 2;
+      const sx = ex - 2;
+      const sy = ey - 2;
+      drawPixelArt(ctx, sx, sy, SPRITE_SNAKE, scale);
+    } else if (e.type === 'scorpion') {
+      const scale = 2;
+      const sx = ex - 1;
+      const sy = ey;
+      drawPixelArt(ctx, sx, sy, SPRITE_SCORPION, scale);
+    } else if (e.type === 'bat') {
+      const scale = 2;
+      const sx = ex - 2;
+      const sy = ey;
+      drawPixelArt(ctx, sx, sy, SPRITE_BAT, scale);
+    } else if (e.type === 'boss') {
+      if (e.flashTimer > 0) {
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(ex, ey, e.w, e.h);
+        ctx.globalAlpha = 1;
+      } else {
+        const scale = 3;
+        const sx = ex - 12;
+        const sy = ey - 6;
+        drawPixelArt(ctx, sx, sy, SPRITE_BOSS, scale);
+      }
+      // HP bar
+      const barW = e.w;
+      const barH = 8;
+      const barX = ex;
+      const barY = ey - 18;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = e.hp > 1 ? '#f00' : '#ff0';
+      ctx.fillRect(barX, barY, barW * (e.hp / e.maxHp), barH);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barW, barH);
+      // HP text
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(e.hp + '/' + e.maxHp, barX + barW / 2, barY - 3);
+    }
+  }
+}
+
+function drawBottles() {
+  const lv = LEVELS[currentLevel];
+  for (const b of lv.bottles) {
+    if (b.collected) continue;
+    const bx = Math.round(b.x), by = Math.round(b.y);
+    const bob = Math.sin(frameCount * 0.05 + bx) * 3;
+    const scale = 2;
+    drawPixelArt(ctx, bx - 2, by + bob - 2, SPRITE_BOTTLE, scale);
+    // Glow
+    ctx.fillStyle = 'rgba(100,255,100,0.3)';
+    ctx.beginPath();
+    ctx.arc(bx + 8, by + 10 + bob, 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawExit() {
+  const lv = LEVELS[currentLevel];
+  if (!lv.exit) return;
+  const ex = lv.exit;
+  const canExit = currentLevel < 2 || lv.bossDefeated;
+  const glow = Math.sin(frameCount * 0.08) * 0.3 + 0.7;
+  if (canExit) {
+    ctx.fillStyle = `rgba(100,200,255,${glow})`;
+    ctx.fillRect(ex.x + 2, ex.y + 4, ex.w - 4, ex.h - 4);
+    ctx.fillStyle = '#0af';
+  } else {
+    ctx.fillStyle = `rgba(150,50,50,${glow})`;
+    ctx.fillRect(ex.x + 2, ex.y + 4, ex.w - 4, ex.h - 4);
+    ctx.fillStyle = '#a33';
+  }
+  ctx.fillRect(ex.x, ex.y, ex.w, ex.h);
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(canExit ? '▶' : '🔒', ex.x + ex.w / 2, ex.y + ex.h / 2 + 5);
+}
+
+function drawMenu() {
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('葫 芦 娃 闯 关', W / 2, 80);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '18px monospace';
+  ctx.fillText('选择你的葫芦娃开始冒险', W / 2, 120);
+
+  const startX = 60;
+  const spacing = 105;
+  for (let i = 0; i < 7; i++) {
+    const x = startX + i * spacing;
+    const y = 200;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(x - 5, y - 5, 90, 180);
+
+    // Pixel art gourd in menu with character color
+    const menuScale = 5;
+    const tempColors = { ...PIXEL_COLORS };
+    tempColors['R'] = GOURDS[i].color;
+    tempColors['r'] = GOURDS[i].dark;
+    SPRITE_GOURD.forEach((row, rowIndex) => {
+      row.split('').forEach((pixel, colIndex) => {
+        if (pixel !== '_' && tempColors[pixel]) {
+          ctx.fillStyle = tempColors[pixel];
+          ctx.fillRect(x + 5 + colIndex * menuScale, y + 5 + rowIndex * menuScale, menuScale, menuScale);
+        }
+      });
+    });
+
+    ctx.fillStyle = GOURDS[i].color;
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(GOURDS[i].name, x + 40, y + 90);
+
+    ctx.fillStyle = '#888';
+    ctx.font = '14px monospace';
+    ctx.fillText('按 ' + (i + 1), x + 40, y + 115);
+  }
+
+  ctx.fillStyle = '#666';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('WASD移动 | G跳跃 | 数字键1-7选择角色', W / 2, 480);
+  ctx.fillText('从上方踩踏敌人消灭它们', W / 2, 510);
+  ctx.fillText('收集葫芦瓶恢复生命 | 到达出口过关', W / 2, 540);
+  ctx.fillText('ESC暂停 | M静音 | F1调试模式', W / 2, 570);
+
+  ctx.fillStyle = '#444';
+  ctx.font = '12px monospace';
+  ctx.fillText('纯HTML5 Canvas游戏 | 无外部依赖', W / 2, H - 30);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#ff3333';
+  ctx.font = 'bold 56px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('游戏结束', W / 2, H / 2 - 40);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '24px monospace';
+  ctx.fillText('最终分数: ' + score, W / 2, H / 2 + 20);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '18px monospace';
+  ctx.fillText('按 R 重新开始', W / 2, H / 2 + 70);
+}
+
+function drawVictory() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  for (let i = 0; i < 5; i++) {
+    const fx = W / 2 + Math.sin(frameCount * 0.03 + i * 1.3) * 200;
+    const fy = 100 + Math.cos(frameCount * 0.02 + i) * 80;
+    const colors = ['#f00', '#ff0', '#0f0', '#0ff', '#f0f'];
+    ctx.fillStyle = colors[i];
+    ctx.beginPath();
+    ctx.arc(fx, fy, 8 + Math.sin(frameCount * 0.1 + i) * 4, 0, Math.PI * 2);
+    ctx.fill();
+    for (let j = 0; j < 8; j++) {
+      const angle = (j / 8) * Math.PI * 2 + frameCount * 0.02;
+      const len = 15 + Math.sin(frameCount * 0.1 + j) * 8;
+      ctx.strokeStyle = colors[(i + j) % 5];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(fx, fy);
+      ctx.lineTo(fx + Math.cos(angle) * len, fy + Math.sin(angle) * len);
+      ctx.stroke();
+    }
+  }
+
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 56px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('恭喜通关！', W / 2, H / 2 - 40);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '24px monospace';
+  ctx.fillText('最终分数: ' + score, W / 2, H / 2 + 20);
+
+  ctx.fillStyle = '#0f0';
+  ctx.font = '20px monospace';
+  ctx.fillText('葫芦娃们成功打败了蛇精！', W / 2, H / 2 + 60);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '18px monospace';
+  ctx.fillText('按 R 返回菜单', W / 2, H / 2 + 110);
+}
+
+function drawPauseOverlay() {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('游戏暂停', W / 2, H / 2 - 60);
+
+  ctx.font = '24px monospace';
+  ctx.fillText('按 ESC 继续游戏', W / 2, H / 2 + 10);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '18px monospace';
+  ctx.fillText('按 M ' + (gameMuted ? '取消静音' : '静音'), W / 2, H / 2 + 60);
+  ctx.fillText('按 R 返回菜单', W / 2, H / 2 + 90);
+
+  // Show mute status
+  ctx.fillStyle = gameMuted ? '#f44' : '#4f4';
+  ctx.font = '16px monospace';
+  ctx.fillText(gameMuted ? '🔊 静音中' : '🔊 声音开启', W / 2, H / 2 + 130);
+}
+
+function drawHUD() {
+  const g = GOURDS[currentChar];
+  ctx.fillStyle = g.color;
+  ctx.fillRect(10, 10, 24, 24);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(14, 16, 4, 4);
+  ctx.fillRect(22, 16, 4, 4);
+
+  // Boss HP bar in HUD (level 3)
+  if (currentLevel === 2) {
+    const lv = LEVELS[2];
+    const boss = lv.enemies.find(e => e.type === 'boss' && e.alive);
+    if (boss) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(W / 2 - 100, 10, 200, 12);
+      ctx.fillStyle = '#f00';
+      ctx.fillRect(W / 2 - 100, 10, 200 * (boss.hp / boss.maxHp), 12);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(W / 2 - 100, 10, 200, 12);
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('蛇精 ' + boss.hp + '/' + boss.maxHp, W / 2, 20);
+    }
+  }
+}
+
+// ==================== MAIN GAME LOOP ====================
+function gameLoop(timestamp) {
+  frameCount++;
+
+  // FPS calculation
+  const delta = timestamp - lastFrameTime;
+  lastFrameTime = timestamp;
+  fpsTimer += delta;
+  fpsCount++;
+  if (fpsTimer >= 1000) {
+    fps = fpsCount;
+    fpsCount = 0;
+    fpsTimer = 0;
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (gameState === 'menu') {
+    drawMenu();
+  } else if (gameState === 'playing') {
+    if (!gamePaused) {
+      updatePlayer();
+      updateEnemies();
+      updateBossProjectiles();
+      particleSystem.update();
+      screenShake.update();
+    }
+
+    screenShake.apply(ctx);
+    drawBackground();
+    drawPlatforms();
+    drawBottles();
+    drawExit();
+    drawBossProjectiles();
+    drawEnemies();
+    drawPlayer();
+    particleSystem.draw(ctx);
+    screenShake.restore(ctx);
+    drawHUD();
+
+    if (gamePaused) {
+      drawPauseOverlay();
+    }
+
+    // Debug mode
+    if (debugMode) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(10, H - 60, 200, 50);
+      ctx.fillStyle = '#0f0';
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('FPS: ' + fps, 16, H - 42);
+      ctx.fillText('粒子: ' + particleSystem.particles.length, 16, H - 26);
+      ctx.fillText('关卡: ' + (currentLevel + 1) + ' | 暂停: ' + gamePaused, 16, H - 10);
+    }
+  } else if (gameState === 'gameover') {
+    drawBackground();
+    drawPlatforms();
+    drawGameOver();
+  } else if (gameState === 'victory') {
+    particleSystem.update();
+    drawVictory();
+    particleSystem.draw(ctx);
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ==================== INPUT HANDLING ====================
+document.addEventListener('keydown', (e) => {
+  // Initialize audio on first interaction
+  sound.init();
+
+  keys[e.code] = true;
+
+  // ESC - Pause/Resume
+  if (e.code === 'Escape') {
+    if (gameState === 'playing') {
+      gamePaused = !gamePaused;
+    }
+  }
+
+  // M - Mute/Unmute
+  if (e.code === 'KeyM') {
+    sound.toggle();
+  }
+
+  // F1 - Debug mode
+  if (e.code === 'F1') {
+    e.preventDefault();
+    debugMode = !debugMode;
+  }
+
+  // R - Restart
+  if (e.code === 'KeyR') {
+    if (gameState === 'gameover' || gameState === 'victory') {
+      gameState = 'menu';
+      score = 0;
+      particleSystem.particles = [];
+    } else if (gameState === 'playing') {
+      resetPlayer();
+      buildLevel(currentLevel);
+      score = 0;
+      updateUI();
+    }
+  }
+
+  // Character selection (menu only)
+  if (gameState === 'menu') {
+    const num = parseInt(e.key);
+    if (num >= 1 && num <= 7) {
+      startGame(num - 1);
+    }
+  }
+
+  // Prevent scrolling
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+});
+
+// ==================== START ====================
+updateUI();
+gameLoop(performance.now());
+</script>
+</body>
+</html>
