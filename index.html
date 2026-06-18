@@ -35,7 +35,8 @@ body {
 </head>
 <body>
 <div id="ui">
-  <span id="hpDisplay">❤❤❤❤❤</span>
+  <span id="hpDisplay">❤❤❤❤❤ ×3</span>
+  <span id="abilityDisplay"></span>
   <span id="scoreDisplay">分数: 0</span>
   <span id="levelDisplay">第1关: 森林冒险</span>
 </div>
@@ -62,10 +63,144 @@ let frameCount = 0;
 let gamePaused = false;
 let gameMuted = false;
 let debugMode = false;
+let lives = 3;
+let fireBalls = [];
+let stealthTimer = 0;
 let lastFrameTime = performance.now();
 let fps = 0;
 let fpsTimer = 0;
 let fpsCount = 0;
+
+// ==================== COMBO SYSTEM ====================
+let comboCounter = 0;
+let comboTimer = 0;
+const COMBO_TIMEOUT = 180;
+let floatingTexts = [];
+
+function getComboScore(base) {
+  const mult = [100, 150, 200, 300, 500];
+  const idx = Math.min(comboCounter - 1, 4);
+  return base === 100 ? mult[idx] : base;
+}
+
+function addFloatingText(x, y, text, color) {
+  floatingTexts.push({ x, y, text, color, life: 60, vy: -2 });
+}
+
+function updateFloatingTexts() {
+  floatingTexts = floatingTexts.filter(ft => {
+    ft.y += ft.vy;
+    ft.life--;
+    return ft.life > 0;
+  });
+}
+
+function drawFloatingTexts() {
+  for (const ft of floatingTexts) {
+    const alpha = ft.life / 60;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = ft.color;
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ==================== WALKING ANIMATION ====================
+const ANIM_WALK = [
+  [
+    '____RRRR____',
+    '___RRRRRR___',
+    '__RRRRRRRR__',
+    '_RWRKRKRKWR_',
+    '_RRRRRRRRRR_',
+    '__RRRRRRRR__',
+    '__RRRRRRRR__',
+    '___RRRRRR___',
+    '___RRRRRR___',
+    '___rrrrrr___',
+    '___rrrrrr___',
+    '__nnnnnnnn__',
+    '__nnnnnnnn__',
+    '__nnnnnnnn__',
+    '___nnnnnn___',
+    '___nnnnnn___',
+    '___kk___kk__',
+    '___kk___kk__',
+  ],
+  [
+    '____RRRR____',
+    '___RRRRRR___',
+    '__RRRRRRRR__',
+    '_RWRKRKRKWR_',
+    '_RRRRRRRRRR_',
+    '__RRRRRRRR__',
+    '__RRRRRRRR__',
+    '___RRRRRR___',
+    '___RRRRRR___',
+    '___rrrrrr___',
+    '___rrrrrr___',
+    '__nnnnnnnn__',
+    '__nnnnnnnn__',
+    '__nnnnnnnn__',
+    '___nnnnnn___',
+    '___nnnnnn___',
+    '__kk____kk__',
+    '__kk____kk__',
+  ]
+];
+
+const ANIM_JUMP = [
+  [
+    '____RRRR____',
+    '___RRRRRR___',
+    '__RRRRRRRR__',
+    '_RWRKRKRKWR_',
+    '_RRRRRRRRRR_',
+    '__RRRRRRRR__',
+    '__RRRRRRRR__',
+    '__RRRRRRRR__',
+    '___RRRRRR___',
+    '___rrrrrr___',
+    '___rrrrrr___',
+    '__nnnnnnnn__',
+    '_nnnnnnnnnn_',
+    '_nnnnnnnnnn_',
+    '___nnnnnn___',
+    '___nnnnnn___',
+    '__kk____kk__',
+    '__kk____kk__',
+  ]
+];
+
+let animFrame = 0;
+let animTimer = 0;
+
+// ==================== PARALLAX SCROLLING ====================
+function generateParallaxElements(type) {
+  const elements = [];
+  if (type === 0) {
+    for (let i = 0; i < 8; i++) {
+      elements.push({ x: i * 200, h: 120 + Math.sin(i * 1.3) * 60, w: 160 });
+    }
+  } else if (type === 1) {
+    for (let i = 0; i < 12; i++) {
+      elements.push({ x: i * 140, h: 80 + Math.sin(i * 2.1) * 30 });
+    }
+  } else {
+    for (let i = 0; i < 20; i++) {
+      elements.push({ x: i * 90, h: 15 + Math.sin(i * 1.7) * 8 });
+    }
+  }
+  return elements;
+}
+
+const PARALLAX_LAYERS = [
+  { speed: 0.1, elements: generateParallaxElements(0) },
+  { speed: 0.3, elements: generateParallaxElements(1) },
+  { speed: 0.6, elements: generateParallaxElements(2) },
+];
 
 // ==================== PIXEL ART SYSTEM ====================
 const PIXEL_COLORS = {
@@ -270,6 +405,12 @@ class SoundManager {
     this.playTone(200, 0.15, 'sawtooth', 500, 0.18);
   }
 
+  checkpoint() {
+    this.playTone(400, 0.1, 'sine', 800, 0.15);
+    setTimeout(() => this.playTone(600, 0.15, 'sine', 1000, 0.12), 100);
+    setTimeout(() => this.playTone(800, 0.2, 'sine', 1200, 0.1), 200);
+  }
+
   victory() {
     const notes = [523, 659, 784, 1047];
     notes.forEach((freq, i) => {
@@ -419,6 +560,18 @@ let bossProjectiles = [];
 
 function updateBossProjectiles() {
   bossProjectiles = bossProjectiles.filter(p => {
+    if (p.homing) {
+      const dx = player.x + player.w / 2 - p.x;
+      const dy = player.y + player.h / 2 - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      p.vx += (dx / dist) * 0.3;
+      p.vy += (dy / dist) * 0.3;
+      const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      if (speed > 5) {
+        p.vx = (p.vx / speed) * 5;
+        p.vy = (p.vy / speed) * 5;
+      }
+    }
     p.x += p.vx;
     p.y += p.vy;
     p.life--;
@@ -428,10 +581,21 @@ function updateBossProjectiles() {
 
 function drawBossProjectiles() {
   for (const p of bossProjectiles) {
-    ctx.fillStyle = '#ff00ff';
-    ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
-    ctx.fillStyle = '#ff88ff';
-    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    if (p.homing) {
+      ctx.fillStyle = '#ff4400';
+      ctx.fillRect(p.x - 5, p.y - 5, 10, 10);
+      ctx.fillStyle = '#ffaa00';
+      ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+      ctx.fillStyle = 'rgba(255,100,0,0.3)';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#ff00ff';
+      ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
+      ctx.fillStyle = '#ff88ff';
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
   }
 }
 
@@ -444,6 +608,16 @@ const GOURDS = [
   { name: '五娃', color: '#00cccc', dark: '#009999' },
   { name: '六娃', color: '#0066ff', dark: '#0044cc' },
   { name: '七娃', color: '#9933ff', dark: '#7700cc' }
+];
+
+const CHARACTER_ABILITIES = [
+  { name: '大娃', ability: '力大无穷', effect: 'doubleDamage', desc: '踩踏敌人造成双倍伤害' },
+  { name: '二娃', ability: '千里眼', effect: 'longJump', desc: '跳跃高度+30%' },
+  { name: '三娃', ability: '铜头铁臂', effect: 'extraHp', desc: '额外+1最大生命值' },
+  { name: '四娃', ability: '喷火', effect: 'fireBreath', desc: '按K向前喷火攻击' },
+  { name: '五娃', ability: '吸水', effect: 'fastMove', desc: '移动速度+25%' },
+  { name: '六娃', ability: '隐身', effect: 'stealth', desc: '按K短暂隐身2秒' },
+  { name: '七娃', ability: '宝葫芦', effect: 'magnet', desc: '自动吸引附近道具' }
 ];
 
 const LEVELS = [
@@ -483,8 +657,10 @@ function buildLevel(idx) {
   lv.platforms = [];
   lv.enemies = [];
   lv.bottles = [];
+  lv.checkpoints = [];
   lv.bossDefeated = false;
   bossProjectiles = [];
+  lastCheckpoint = null;
 
   for (let x = 0; x < GRID; x++) {
     lv.platforms.push({ x: x * TILE, y: (GRID - 1) * TILE, w: TILE, h: TILE });
@@ -513,6 +689,10 @@ function buildLevel(idx) {
     bDefs.forEach(([bx,by]) => {
       lv.bottles.push({ x: bx, y: by, w: 20, h: 24, collected: false });
     });
+    lv.checkpoints = [
+      { x: 12*TILE, y: (GRID-2)*TILE - 40, active: false },
+      { x: 20*TILE, y: (GRID-2)*TILE - 40, active: false }
+    ];
     lv.exit = { x: 24*TILE, y: (GRID-2)*TILE - 40, w: 32, h: 40 };
   } else if (idx === 1) {
     const pDefs = [
@@ -538,6 +718,10 @@ function buildLevel(idx) {
     bDefs.forEach(([bx,by]) => {
       lv.bottles.push({ x: bx, y: by, w: 20, h: 24, collected: false });
     });
+    lv.checkpoints = [
+      { x: 8*TILE, y: (GRID-2)*TILE - 40, active: false },
+      { x: 18*TILE, y: (GRID-2)*TILE - 40, active: false }
+    ];
     lv.exit = { x: 24*TILE, y: (GRID-2)*TILE - 40, w: 32, h: 40 };
   } else {
     const pDefs = [
@@ -568,6 +752,10 @@ function buildLevel(idx) {
     bDefs.forEach(([bx,by]) => {
       lv.bottles.push({ x: bx, y: by, w: 20, h: 24, collected: false });
     });
+    lv.checkpoints = [
+      { x: 10*TILE, y: (GRID-2)*TILE - 40, active: false },
+      { x: 16*TILE, y: (GRID-2)*TILE - 40, active: false }
+    ];
     lv.exit = { x: 24*TILE, y: 3*TILE, w: 32, h: 40 };
   }
 }
@@ -576,30 +764,53 @@ function buildLevel(idx) {
 let player = {
   x: 2*TILE, y: (GRID-2)*TILE - 48, w: 24, h: 48,
   vx: 0, vy: 0, hp: 5, maxHp: 5,
-  onGround: false, facing: 1, specialCooldown: 0
+  onGround: false, facing: 1, specialCooldown: 0,
+  ability: '', abilityDesc: '', coyoteTimer: 0
 };
 
+let lastCheckpoint = null;
+
 function resetPlayer() {
-  player.x = 2 * TILE;
-  player.y = (GRID - 2) * TILE - 48;
+  if (lastCheckpoint) {
+    player.x = lastCheckpoint.x;
+    player.y = lastCheckpoint.y;
+  } else {
+    player.x = 2 * TILE;
+    player.y = (GRID - 2) * TILE - 48;
+  }
   player.vx = 0;
   player.vy = 0;
   player.hp = player.maxHp;
   player.onGround = false;
   player.specialCooldown = 0;
+  player.coyoteTimer = 0;
   invincibleTimer = 0;
+  stealthTimer = 0;
+  fireBalls = [];
 }
 
 function startGame(charIdx) {
   currentChar = charIdx;
   currentLevel = 0;
   score = 0;
+  lives = 3;
+  const ability = CHARACTER_ABILITIES[charIdx];
+  player.ability = ability.effect;
+  player.abilityDesc = ability.desc;
+  if (ability.effect === 'extraHp') {
+    player.maxHp = 6;
+  } else {
+    player.maxHp = 5;
+  }
   buildLevel(0);
   resetPlayer();
   gameState = 'playing';
   gamePaused = false;
   particleSystem.particles = [];
   bossProjectiles = [];
+  comboCounter = 0;
+  comboTimer = 0;
+  floatingTexts = [];
   updateUI();
 }
 
@@ -613,15 +824,33 @@ function restartGame() {
   }
 }
 
+function handleDeath() {
+  lives--;
+  if (lives > 0) {
+    resetPlayer();
+    buildLevel(currentLevel);
+  } else {
+    gameState = 'gameover';
+  }
+  updateUI();
+}
+
 function updateUI() {
   let hpStr = '';
   for (let i = 0; i < player.maxHp; i++) {
     hpStr += i < player.hp ? '❤' : '🖤';
   }
+  hpStr += '  ×' + lives;
   document.getElementById('hpDisplay').textContent = hpStr;
   document.getElementById('scoreDisplay').textContent = '分数: ' + score;
   const lvNames = ['森林冒险','翻山越岭','蛇精洞府'];
   document.getElementById('levelDisplay').textContent = '第' + (currentLevel+1) + '关: ' + lvNames[currentLevel];
+  const abEl = document.getElementById('abilityDisplay');
+  if (player.ability) {
+    const ab = CHARACTER_ABILITIES[currentChar];
+    abEl.textContent = ab.name + '·' + ab.ability;
+    abEl.style.color = GOURDS[currentChar].color;
+  }
 }
 
 // ==================== COLLISION ====================
@@ -658,26 +887,56 @@ function updatePlayer() {
   if (keys['KeyD'] || keys['ArrowRight']) { dx = 1; player.facing = 1; }
   // S键减速/蹲下
   const speedMult = keys['KeyS'] ? 0.4 : 1;
-  player.vx = dx * 5 * FRICTION * speedMult;
+  const baseSpeed = player.ability === 'fastMove' ? 6.25 : 5;
+  player.vx = dx * baseSpeed * FRICTION * speedMult;
 
-  if ((keys['KeyG'] || keys['KeyW'] || keys['ArrowUp'] || keys['Space']) && player.onGround) {
-    player.vy = JUMP_FORCE;
+  const jumpForce = player.ability === 'longJump' ? JUMP_FORCE * 1.3 : JUMP_FORCE;
+  if ((keys['KeyG'] || keys['KeyW'] || keys['ArrowUp'] || keys['Space']) && (player.onGround || player.coyoteTimer > 0)) {
+    player.vy = jumpForce;
     player.onGround = false;
+    player.coyoteTimer = 0;
     sound.jump();
   }
 
-  // K键特殊技能：短暂加速冲刺
   if (keys['KeyK'] && !player.specialCooldown) {
-    player.vx = player.facing * 12;
-    player.specialCooldown = 30;
-    sound.hurt();
+    if (player.ability === 'fireBreath') {
+      fireBalls.push({
+        x: player.x + player.w / 2,
+        y: player.y + player.h / 2 - 4,
+        vx: player.facing * 8,
+        vy: 0,
+        life: 40
+      });
+      player.specialCooldown = 20;
+      sound.collect();
+    } else if (player.ability === 'stealth') {
+      stealthTimer = 120;
+      player.specialCooldown = 90;
+      sound.jump();
+    } else {
+      player.vx = player.facing * 12;
+      player.specialCooldown = 30;
+      sound.hurt();
+    }
   }
   if (player.specialCooldown > 0) player.specialCooldown--;
+  if (stealthTimer > 0) stealthTimer--;
 
   player.vy += GRAVITY;
   if (player.vy > 15) player.vy = 15;
   player.x += player.vx;
   player.y += player.vy;
+
+  if (Math.abs(player.vx) > 0.5) {
+    animTimer++;
+    if (animTimer >= 8) {
+      animTimer = 0;
+      animFrame = (animFrame + 1) % ANIM_WALK.length;
+    }
+  } else {
+    animFrame = 0;
+    animTimer = 0;
+  }
 
   const lv = LEVELS[currentLevel];
   player.onGround = false;
@@ -685,6 +944,23 @@ function updatePlayer() {
   for (const p of lv.platforms) {
     if (aabb(player, p)) {
       resolveCollision(player, p);
+    }
+  }
+
+  // Coyote time
+  if (player.onGround) {
+    player.coyoteTimer = 6;
+  } else {
+    if (player.coyoteTimer > 0) player.coyoteTimer--;
+  }
+
+  // Checkpoint detection
+  for (const cp of lv.checkpoints) {
+    if (!cp.active && aabb(player, { x: cp.x, y: cp.y, w: 32, h: 40 })) {
+      cp.active = true;
+      lastCheckpoint = { x: cp.x, y: cp.y };
+      sound.checkpoint();
+      particleSystem.emitCollect(cp.x + 16, cp.y + 20);
     }
   }
 
@@ -707,7 +983,7 @@ function updatePlayer() {
         bp.life = 0;
         sound.hurt();
         screenShake.shake(6, 10);
-        if (player.hp <= 0) gameState = 'gameover';
+        if (player.hp <= 0) { handleDeath(); return; }
         updateUI();
       }
     }
@@ -717,6 +993,7 @@ function updatePlayer() {
   for (const e of lv.enemies) {
     if (!e.alive) continue;
     if (!aabb(player, e)) continue;
+    if (stealthTimer > 0) continue;
 
     const playerBottom = player.y + player.h;
     const enemyTop = e.y;
@@ -724,7 +1001,7 @@ function updatePlayer() {
 
     if (falling && playerBottom - enemyTop < 20) {
       if (e.type === 'boss') {
-        e.hp--;
+        e.hp -= (player.ability === 'doubleDamage' ? 2 : 1);
         e.flashTimer = 10;
         e.shootTimer = 0;
         player.vy = JUMP_FORCE * 0.7;
@@ -743,10 +1020,22 @@ function updatePlayer() {
       } else {
         e.alive = false;
         player.vy = JUMP_FORCE * 0.7;
-        score += 100;
+        comboCounter++;
+        comboTimer = COMBO_TIMEOUT;
+        const pts = getComboScore(100);
+        score += pts;
         sound.killEnemy();
         particleSystem.emitExplosion(e.x + e.w / 2, e.y + e.h / 2);
         screenShake.shake(3, 5);
+        const textX = e.x + e.w / 2;
+        const textY = e.y - 10;
+        if (comboCounter >= 5) {
+          addFloatingText(textX, textY, 'UNSTOPPABLE! + ' + pts, '#ff0');
+        } else if (comboCounter >= 2) {
+          addFloatingText(textX, textY, 'x' + comboCounter + ' COMBO! + ' + pts, '#ff0');
+        } else {
+          addFloatingText(textX, textY, '+' + pts, '#fff');
+        }
       }
     } else if (invincibleTimer <= 0) {
       player.hp--;
@@ -755,14 +1044,58 @@ function updatePlayer() {
       player.vy = -6;
       sound.hurt();
       screenShake.shake(5, 12);
-      if (player.hp <= 0) gameState = 'gameover';
+      if (player.hp <= 0) { handleDeath(); return; }
     }
     updateUI();
   }
 
+  // Fireball collision with enemies
+  for (let fi = fireBalls.length - 1; fi >= 0; fi--) {
+    const fb = fireBalls[fi];
+    for (const e of lv.enemies) {
+      if (!e.alive) continue;
+      if (aabb({ x: fb.x - 4, y: fb.y - 4, w: 8, h: 8 }, e)) {
+        if (e.type === 'boss') {
+          e.hp--;
+          e.flashTimer = 10;
+          e.shootTimer = 0;
+          sound.bossHurt();
+          screenShake.shake(8, 12);
+          particleSystem.emitBossHit(e.x + e.w / 2, e.y + e.h / 2);
+          if (e.hp <= 0) {
+            e.alive = false;
+            score += 500;
+            particleSystem.emitVictory(e.x + e.w / 2, e.y + e.h / 2);
+            screenShake.shake(15, 25);
+            sound.bossDefeat();
+            lv.bossDefeated = true;
+          }
+        } else {
+          e.alive = false;
+          score += 100;
+          sound.killEnemy();
+          particleSystem.emitExplosion(e.x + e.w / 2, e.y + e.h / 2);
+          screenShake.shake(3, 5);
+        }
+        fb.life = 0;
+        break;
+      }
+    }
+  }
+
   // Bottle collection
+  const magnetRange = player.ability === 'magnet' ? 96 : 0;
   for (const b of lv.bottles) {
     if (b.collected) continue;
+    if (magnetRange > 0) {
+      const mdx = (player.x + player.w/2) - (b.x + b.w/2);
+      const mdy = (player.y + player.h/2) - (b.y + b.h/2);
+      const mDist = Math.sqrt(mdx*mdx + mdy*mdy);
+      if (mDist < magnetRange) {
+        b.x += mdx * 0.08;
+        b.y += mdy * 0.08;
+      }
+    }
     if (aabb(player, b)) {
       b.collected = true;
       if (player.hp < player.maxHp) player.hp++;
@@ -773,12 +1106,19 @@ function updatePlayer() {
     }
   }
 
+  // General death check (falling off screen)
+  if (player.hp <= 0 && gameState === 'playing') {
+    handleDeath();
+    return;
+  }
+
   // Exit check (only if boss defeated in level 2)
   if (lv.exit && aabb(player, lv.exit)) {
     if (currentLevel === 2 && !lv.bossDefeated) {
       // Cannot exit until boss is defeated
     } else if (currentLevel < 2) {
       currentLevel++;
+      if (lives < 3) lives++;
       buildLevel(currentLevel);
       resetPlayer();
       updateUI();
@@ -799,21 +1139,69 @@ function updateEnemies() {
       e.x += e.vx;
       if (e.x < 14*TILE || e.x + e.w > 25*TILE) e.vx *= -1;
 
-      // Boss shooting
+      // Boss shooting - multi-phase
       e.shootTimer++;
-      if (e.shootTimer >= e.shootInterval) {
+      let shootInterval, pattern;
+      if (e.hp >= 3) {
+        shootInterval = 90;
+        pattern = 'single';
+      } else if (e.hp >= 2) {
+        shootInterval = 60;
+        pattern = 'spread';
+      } else {
+        shootInterval = 30;
+        pattern = 'homing';
+      }
+      if (e.shootTimer >= shootInterval) {
         e.shootTimer = 0;
-        const dx = player.x - (e.x + e.w / 2);
-        const dy = player.y - (e.y + e.h / 2);
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const speed = 3;
-        bossProjectiles.push({
-          x: e.x + e.w / 2,
-          y: e.y + e.h,
-          vx: (dx / dist) * speed,
-          vy: (dy / dist) * speed,
-          life: 120
-        });
+        const bx = e.x + e.w / 2;
+        const by = e.y + e.h;
+        if (pattern === 'single') {
+          const dx = player.x - bx;
+          const dy = player.y - by;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          bossProjectiles.push({ x: bx, y: by, vx: (dx / dist) * 3, vy: (dy / dist) * 3, life: 120 });
+        } else if (pattern === 'spread') {
+          for (let i = -1; i <= 1; i++) {
+            const angle = (i * 15) * Math.PI / 180;
+            const dx = player.x - bx;
+            const dy = player.y - by;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const baseVx = (dx / dist) * 3;
+            const baseVy = (dy / dist) * 3;
+            const cosA = Math.cos(angle);
+            const sinA = Math.sin(angle);
+            bossProjectiles.push({
+              x: bx, y: by,
+              vx: baseVx * cosA - baseVy * sinA,
+              vy: baseVx * sinA + baseVy * cosA,
+              life: 120
+            });
+          }
+        } else if (pattern === 'homing') {
+          const dx = player.x - bx;
+          const dy = player.y - by;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          bossProjectiles.push({
+            x: bx, y: by,
+            vx: (dx / dist) * 4,
+            vy: (dy / dist) * 4,
+            life: 150,
+            homing: true
+          });
+          // Summon a minion
+          if (lv.enemies.filter(e2 => e2.alive && e2.type !== 'boss').length < 6) {
+            const mType = Math.random() > 0.5 ? 'snake' : 'bat';
+            lv.enemies.push({
+              x: e.x + (Math.random() > 0.5 ? -TILE : e.w + TILE),
+              y: (GRID - 2) * TILE,
+              w: 28, h: 24, type: mType,
+              vx: mType === 'bat' ? BAT_SPEED : -ENEMY_SPEED,
+              vy: mType === 'bat' ? 1 : 0,
+              alive: true, baseY: (GRID - 2) * TILE
+            });
+          }
+        }
       }
       continue;
     }
@@ -854,44 +1242,86 @@ function drawBackground() {
   ctx.fillRect(0, 0, W, H);
 
   if (currentLevel === 0) {
-    ctx.fillStyle = '#1a4a0e';
-    for (let i = 0; i < 8; i++) {
-      const tx = i * 110 + 20;
-      ctx.fillRect(tx + 8, H - 160, 8, 120);
+    const layer0 = PARALLAX_LAYERS[0];
+    const off0 = (-player.x * layer0.speed) % 2000;
+    ctx.fillStyle = '#1a3a0e';
+    for (const e of layer0.elements) {
+      const ex = e.x + off0;
+      const wrapped = ((ex % 2000) + 2000) % 2000;
       ctx.beginPath();
-      ctx.moveTo(tx - 20, H - 140);
-      ctx.lineTo(tx + 12, H - 220);
-      ctx.lineTo(tx + 44, H - 140);
+      ctx.moveTo(wrapped - 20, H - 100);
+      ctx.lineTo(wrapped + e.w / 2, H - 100 - e.h);
+      ctx.lineTo(wrapped + e.w + 20, H - 100);
       ctx.fill();
     }
-  } else if (currentLevel === 1) {
-    ctx.fillStyle = '#3a2a0e';
-    for (let i = 0; i < 5; i++) {
-      const mx = i * 180;
+
+    const layer1 = PARALLAX_LAYERS[1];
+    const off1 = (-player.x * layer1.speed) % 1800;
+    ctx.fillStyle = '#1a4a0e';
+    for (const e of layer1.elements) {
+      const ex = e.x + off1;
+      const wrapped = ((ex % 1800) + 1800) % 1800;
+      ctx.fillRect(wrapped + 8, H - 160, 8, 120);
       ctx.beginPath();
-      ctx.moveTo(mx, H - 100);
-      ctx.lineTo(mx + 90, H - 260);
-      ctx.lineTo(mx + 180, H - 100);
+      ctx.moveTo(wrapped - 20, H - 140);
+      ctx.lineTo(wrapped + 12, H - 140 - e.h);
+      ctx.lineTo(wrapped + 44, H - 140);
+      ctx.fill();
+    }
+
+    const layer2 = PARALLAX_LAYERS[2];
+    const off2 = (-player.x * layer2.speed) % 1200;
+    ctx.fillStyle = '#2a6a1a';
+    for (const e of layer2.elements) {
+      const ex = e.x + off2;
+      const wrapped = ((ex % 1200) + 1200) % 1200;
+      ctx.fillRect(wrapped, H - 60, 30, e.h);
+      ctx.fillRect(wrapped + 5, H - 60 - e.h, 20, e.h);
+    }
+  } else if (currentLevel === 1) {
+    const layer0 = PARALLAX_LAYERS[0];
+    const off0 = (-player.x * layer0.speed) % 2000;
+    ctx.fillStyle = '#3a2a0e';
+    for (const e of layer0.elements) {
+      const ex = e.x + off0;
+      const wrapped = ((ex % 2000) + 2000) % 2000;
+      ctx.beginPath();
+      ctx.moveTo(wrapped, H - 100);
+      ctx.lineTo(wrapped + 90, H - 100 - e.h);
+      ctx.lineTo(wrapped + 180, H - 100);
       ctx.fill();
     }
     ctx.fillStyle = '#e8e8e8';
-    for (let i = 0; i < 5; i++) {
-      const mx = i * 180;
+    for (const e of layer0.elements) {
+      const ex = e.x + off0;
+      const wrapped = ((ex % 2000) + 2000) % 2000;
       ctx.beginPath();
-      ctx.moveTo(mx + 60, H - 220);
-      ctx.lineTo(mx + 90, H - 260);
-      ctx.lineTo(mx + 120, H - 220);
+      ctx.moveTo(wrapped + 60, H - 100 - e.h + 40);
+      ctx.lineTo(wrapped + 90, H - 100 - e.h);
+      ctx.lineTo(wrapped + 120, H - 100 - e.h + 40);
       ctx.fill();
     }
+
+    const layer2 = PARALLAX_LAYERS[2];
+    const off2 = (-player.x * layer2.speed) % 1200;
+    ctx.fillStyle = '#5a4a2a';
+    for (const e of layer2.elements) {
+      const ex = e.x + off2;
+      const wrapped = ((ex % 1200) + 1200) % 1200;
+      ctx.fillRect(wrapped, H - 50, 20, e.h);
+      ctx.fillRect(wrapped + 3, H - 50 - e.h, 14, e.h);
+    }
   } else {
+    const layer0 = PARALLAX_LAYERS[0];
+    const off0 = (-player.x * layer0.speed) % 1800;
     ctx.fillStyle = '#0a0a1e';
-    for (let i = 0; i < 12; i++) {
-      const sx = i * 72;
-      const sh = 40 + Math.sin(i * 1.7) * 30;
+    for (const e of layer0.elements) {
+      const ex = e.x + off0;
+      const wrapped = ((ex % 1800) + 1800) % 1800;
       ctx.beginPath();
-      ctx.moveTo(sx, 0);
-      ctx.lineTo(sx + 16, sh);
-      ctx.lineTo(sx + 32, 0);
+      ctx.moveTo(wrapped, 0);
+      ctx.lineTo(wrapped + 16, e.h);
+      ctx.lineTo(wrapped + 32, 0);
       ctx.fill();
     }
     ctx.fillStyle = 'rgba(100,200,255,0.3)';
@@ -932,6 +1362,9 @@ function drawPlayer() {
   const py = Math.round(player.y);
 
   if (invincibleTimer > 0 && Math.floor(invincibleTimer / 4) % 2 === 0) return;
+  if (stealthTimer > 0) {
+    ctx.globalAlpha = 0.3;
+  }
 
   ctx.save();
   if (player.facing < 0) {
@@ -944,17 +1377,13 @@ function drawPlayer() {
   const spriteX = px - 12;
   const spriteY = py - 8;
 
-  // 根据角色颜色动态替换精灵中的红色
-  const charSprite = SPRITE_GOURD.map(row =>
-    row.replace(/R/g, g.color[1] === 'f' ? 'R' : 'R').replace(/r/g, 'r')
-  );
+  const currentSprite = !player.onGround ? ANIM_JUMP[0] : ANIM_WALK[animFrame];
 
-  // 使用临时颜色映射绘制角色精灵
   const tempColors = { ...PIXEL_COLORS };
   tempColors['R'] = g.color;
   tempColors['r'] = g.dark;
   
-  charSprite.forEach((row, rowIndex) => {
+  currentSprite.forEach((row, rowIndex) => {
     row.split('').forEach((pixel, colIndex) => {
       if (pixel !== '_' && tempColors[pixel]) {
         ctx.fillStyle = tempColors[pixel];
@@ -963,7 +1392,30 @@ function drawPlayer() {
     });
   });
 
+  ctx.globalAlpha = 1;
   ctx.restore();
+}
+
+function updateFireBalls() {
+  fireBalls = fireBalls.filter(fb => {
+    fb.x += fb.vx;
+    fb.y += fb.vy;
+    fb.life--;
+    return fb.life > 0 && fb.x > 0 && fb.x < W;
+  });
+}
+
+function drawFireBalls() {
+  for (const fb of fireBalls) {
+    ctx.fillStyle = '#ff6600';
+    ctx.beginPath();
+    ctx.arc(fb.x, fb.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath();
+    ctx.arc(fb.x, fb.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawEnemies() {
@@ -1036,6 +1488,29 @@ function drawBottles() {
   }
 }
 
+function drawCheckpoints() {
+  const lv = LEVELS[currentLevel];
+  for (const cp of lv.checkpoints) {
+    const cx = cp.x, cy = cp.y;
+    if (cp.active) {
+      ctx.fillStyle = '#ffd700';
+      ctx.fillRect(cx + 14, cy, 4, 40);
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(cx + 18, cy, 16, 12);
+      const glow = Math.sin(frameCount * 0.1) * 0.2 + 0.5;
+      ctx.fillStyle = `rgba(255,215,0,${glow})`;
+      ctx.beginPath();
+      ctx.arc(cx + 16, cy + 20, 20, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#888';
+      ctx.fillRect(cx + 14, cy, 4, 40);
+      ctx.fillStyle = '#666';
+      ctx.fillRect(cx + 18, cy, 16, 12);
+    }
+  }
+}
+
 function drawExit() {
   const lv = LEVELS[currentLevel];
   if (!lv.exit) return;
@@ -1071,15 +1546,18 @@ function drawMenu() {
   ctx.font = '18px monospace';
   ctx.fillText('选择你的葫芦娃开始冒险', W / 2, 120);
 
+  ctx.fillStyle = '#ff6666';
+  ctx.font = '16px monospace';
+  ctx.fillText('当前生命数: ×' + lives, W / 2, 150);
+
   const startX = 60;
   const spacing = 105;
   for (let i = 0; i < 7; i++) {
     const x = startX + i * spacing;
-    const y = 200;
+    const y = 190;
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(x - 5, y - 5, 90, 180);
+    ctx.fillRect(x - 5, y - 5, 90, 200);
 
-    // Pixel art gourd in menu with character color
     const menuScale = 5;
     const tempColors = { ...PIXEL_COLORS };
     tempColors['R'] = GOURDS[i].color;
@@ -1098,16 +1576,30 @@ function drawMenu() {
     ctx.textAlign = 'center';
     ctx.fillText(GOURDS[i].name, x + 40, y + 90);
 
+    ctx.fillStyle = '#ffd700';
+    ctx.font = '11px monospace';
+    ctx.fillText(CHARACTER_ABILITIES[i].ability, x + 40, y + 108);
+
     ctx.fillStyle = '#888';
+    ctx.font = '10px monospace';
+    const desc = CHARACTER_ABILITIES[i].desc;
+    if (desc.length > 8) {
+      ctx.fillText(desc.substring(0, 8), x + 40, y + 124);
+      ctx.fillText(desc.substring(8), x + 40, y + 138);
+    } else {
+      ctx.fillText(desc, x + 40, y + 124);
+    }
+
+    ctx.fillStyle = '#666';
     ctx.font = '14px monospace';
-    ctx.fillText('按 ' + (i + 1), x + 40, y + 115);
+    ctx.fillText('按 ' + (i + 1), x + 40, y + 165);
   }
 
   ctx.fillStyle = '#666';
   ctx.font = '14px monospace';
   ctx.textAlign = 'center';
   ctx.fillText('WASD移动 | G跳跃 | 数字键1-7选择角色', W / 2, 480);
-  ctx.fillText('从上方踩踏敌人消灭它们', W / 2, 510);
+  ctx.fillText('从上方踩踏敌人消灭它们 | K使用特殊能力', W / 2, 510);
   ctx.fillText('收集葫芦瓶恢复生命 | 到达出口过关', W / 2, 540);
   ctx.fillText('ESC暂停 | M静音 | F1调试模式', W / 2, 570);
 
@@ -1207,6 +1699,33 @@ function drawHUD() {
   ctx.fillRect(14, 16, 4, 4);
   ctx.fillRect(22, 16, 4, 4);
 
+  if (player.ability) {
+    const ab = CHARACTER_ABILITIES[currentChar];
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(ab.name + '·' + ab.ability, 40, 28);
+  }
+
+  if (comboCounter >= 2) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'right';
+    const comboText = comboCounter >= 5 ? 'UNSTOPPABLE x' + comboCounter : 'x' + comboCounter + ' COMBO';
+    ctx.fillText(comboText, W - 10, 28);
+    ctx.fillStyle = 'rgba(255,255,0,0.3)';
+    const barW = Math.min(comboTimer / COMBO_TIMEOUT, 1) * 120;
+    ctx.fillRect(W - 130, 32, barW, 4);
+  }
+
+  // Stealth indicator
+  if (stealthTimer > 0) {
+    ctx.fillStyle = 'rgba(100,200,255,0.8)';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('隐身中 ' + Math.ceil(stealthTimer / 60) + 's', W / 2, H - 20);
+  }
+
   // Boss HP bar in HUD (level 3)
   if (currentLevel === 2) {
     const lv = LEVELS[2];
@@ -1251,18 +1770,27 @@ function gameLoop(timestamp) {
       updatePlayer();
       updateEnemies();
       updateBossProjectiles();
+      updateFireBalls();
       particleSystem.update();
       screenShake.update();
+      updateFloatingTexts();
+      if (comboTimer > 0) {
+        comboTimer--;
+        if (comboTimer <= 0) comboCounter = 0;
+      }
     }
 
     screenShake.apply(ctx);
     drawBackground();
     drawPlatforms();
+    drawCheckpoints();
     drawBottles();
     drawExit();
     drawBossProjectiles();
+    drawFireBalls();
     drawEnemies();
     drawPlayer();
+    drawFloatingTexts();
     particleSystem.draw(ctx);
     screenShake.restore(ctx);
     drawHUD();
@@ -1325,11 +1853,17 @@ document.addEventListener('keydown', (e) => {
     if (gameState === 'gameover' || gameState === 'victory') {
       gameState = 'menu';
       score = 0;
+      comboCounter = 0;
+      comboTimer = 0;
+      floatingTexts = [];
       particleSystem.particles = [];
     } else if (gameState === 'playing') {
       resetPlayer();
       buildLevel(currentLevel);
       score = 0;
+      comboCounter = 0;
+      comboTimer = 0;
+      floatingTexts = [];
       updateUI();
     }
   }
