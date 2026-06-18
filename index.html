@@ -5,20 +5,87 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>葫芦娃闯关</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&display=swap');
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  background: #1a1a2e;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  font-family: 'Courier New', monospace;
+  font-family: 'Noto Sans SC', 'Segoe UI', sans-serif;
   color: #eee;
   overflow: hidden;
 }
+#controls-bar {
+  width: 832px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 10px;
+  background: linear-gradient(to right, #2d1b4e, #1a1a2e, #2d1b4e);
+  border-radius: 10px 10px 0 0;
+  border: 2px solid rgba(255,215,0,0.3);
+  border-bottom: none;
+  margin-top: 10px;
+}
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.key {
+  background: linear-gradient(180deg, #555, #333);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  border: 1px solid #666;
+  box-shadow: 0 2px 0 #222, inset 0 1px 0 rgba(255,255,255,0.1);
+  font-family: 'Noto Sans SC', monospace;
+  letter-spacing: 0.5px;
+}
+.label {
+  color: #aaa;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+#header {
+  width: 832px;
+  text-align: center;
+  padding: 8px 0;
+}
+#header .title {
+  font-size: 22px;
+  font-weight: 900;
+  background: linear-gradient(90deg, #ff6b6b, #ffd700, #4ecdc4, #a78bfa);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: titleShimmer 4s ease-in-out infinite;
+  text-shadow: none;
+  letter-spacing: 4px;
+}
+@keyframes titleShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+#header .controls {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+  letter-spacing: 1px;
+}
+#header .controls span {
+  margin: 0 6px;
+  color: #aaa;
+}
 #gameCanvas {
-  border: 3px solid #555;
+  border: 3px solid #ffd700;
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.25), 0 0 60px rgba(255, 215, 0, 0.08);
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
@@ -27,31 +94,69 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  font-size: 16px;
+  padding: 10px 20px;
+  background: rgba(0,0,0,0.65);
+  border-radius: 0 0 12px 12px;
+  font-size: 15px;
+  border: 2px solid rgba(255,215,0,0.3);
+  border-top: 1px solid rgba(255,215,0,0.15);
+  backdrop-filter: blur(4px);
 }
-#ui span { text-shadow: 1px 1px 2px #000; }
+#ui span { text-shadow: 1px 1px 3px #000; }
 </style>
 </head>
 <body>
+<div id="controls-bar">
+  <div class="control-group">
+    <span class="key">W/↑</span><span class="key">A/←</span><span class="key">S/↓</span><span class="key">D/→</span>
+    <span class="label">移动</span>
+  </div>
+  <div class="control-group">
+    <span class="key">G/W</span>
+    <span class="label">跳跃</span>
+  </div>
+  <div class="control-group">
+    <span class="key">K</span>
+    <span class="label">技能</span>
+  </div>
+  <div class="control-group">
+    <span class="key">1-7</span>
+    <span class="label">选角色</span>
+  </div>
+  <div class="control-group">
+    <span class="key">ESC</span>
+    <span class="label">暂停</span>
+  </div>
+  <div class="control-group">
+    <span class="key">M</span>
+    <span class="label">静音</span>
+  </div>
+</div>
+<div id="header">
+  <div class="title">葫芦兄弟：拯救爷爷</div>
+  <div class="controls">
+    <span>WASD移动</span> | <span>G/W跳跃</span> | <span>K技能</span> | <span>1-7选角色</span> | <span>ESC暂停</span>
+  </div>
+</div>
+<canvas id="gameCanvas" width="832" height="832"></canvas>
 <div id="ui">
-  <span id="hpDisplay">❤❤❤❤❤ ×3</span>
+  <span id="hpDisplay">❤❤❤❤❤❤ ×5</span>
   <span id="abilityDisplay"></span>
   <span id="scoreDisplay">分数: 0</span>
   <span id="levelDisplay">第1关: 森林冒险</span>
 </div>
-<canvas id="gameCanvas" width="832" height="832"></canvas>
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const TILE = 32;
 const GRID = 26;
 const W = 832, H = 832;
-const GRAVITY = 0.6;
-const FRICTION = 0.8;
-const JUMP_FORCE = -12;
-const ENEMY_SPEED = 1.5;
-const BAT_SPEED = 2;
+const GRAVITY = 0.5;
+const FRICTION = 0.85;
+const JUMP_FORCE = -14;
+const ENEMY_SPEED = 1.0;
+const BAT_SPEED = 1.2;
+const DAMAGE_PER_HIT = 0.5;
 
 let gameState = 'menu';
 let currentChar = 0;
@@ -63,9 +168,10 @@ let frameCount = 0;
 let gamePaused = false;
 let gameMuted = false;
 let debugMode = false;
-let lives = 3;
+let lives = 5;
 let fireBalls = [];
 let stealthTimer = 0;
+let damageAccumulator = 0;
 let lastFrameTime = performance.now();
 let fps = 0;
 let fpsTimer = 0;
@@ -110,67 +216,64 @@ function drawFloatingTexts() {
 // ==================== WALKING ANIMATION ====================
 const ANIM_WALK = [
   [
-    '____RRRR____',
-    '___RRRRRR___',
-    '__RRRRRRRR__',
-    '_RWRKRKRKWR_',
-    '_RRRRRRRRRR_',
-    '__RRRRRRRR__',
-    '__RRRRRRRR__',
-    '___RRRRRR___',
-    '___RRRRRR___',
-    '___rrrrrr___',
-    '___rrrrrr___',
-    '__nnnnnnnn__',
-    '__nnnnnnnn__',
-    '__nnnnnnnn__',
-    '___nnnnnn___',
-    '___nnnnnn___',
-    '___kk___kk__',
-    '___kk___kk__',
+    '___RRRR___',
+    '___RRRR___',
+    '__RRRRRR__',
+    '__RRRRRR__',
+    '_RWWKWWKR_',
+    '_RWWKWWKR_',
+    '_RRRRRRRR_',
+    '__RRRRRR__',
+    '__rrrrrr__',
+    '__nnnnnn__',
+    '__nnnnnn__',
+    '_nnnnnnnn_',
+    '_nnnnnnnn_',
+    '__nnnnnn__',
+    '__nnnnnn__',
+    '__kk__kk__',
+    '__kk__kk__',
   ],
   [
-    '____RRRR____',
-    '___RRRRRR___',
-    '__RRRRRRRR__',
-    '_RWRKRKRKWR_',
-    '_RRRRRRRRRR_',
-    '__RRRRRRRR__',
-    '__RRRRRRRR__',
-    '___RRRRRR___',
-    '___RRRRRR___',
-    '___rrrrrr___',
-    '___rrrrrr___',
-    '__nnnnnnnn__',
-    '__nnnnnnnn__',
-    '__nnnnnnnn__',
-    '___nnnnnn___',
-    '___nnnnnn___',
-    '__kk____kk__',
-    '__kk____kk__',
+    '___RRRR___',
+    '___RRRR___',
+    '__RRRRRR__',
+    '__RRRRRR__',
+    '_RWWKWWKR_',
+    '_RWWKWWKR_',
+    '_RRRRRRRR_',
+    '__RRRRRR__',
+    '__rrrrrr__',
+    '__nnnnnn__',
+    '__nnnnnn__',
+    '_nnnnnnnn_',
+    '_nnnnnnnn_',
+    '__nnnnnn__',
+    '__nnnnnn__',
+    '_kk____kk_',
+    '_kk____kk_',
   ]
 ];
 
 const ANIM_JUMP = [
   [
-    '____RRRR____',
-    '___RRRRRR___',
-    '__RRRRRRRR__',
-    '_RWRKRKRKWR_',
-    '_RRRRRRRRRR_',
-    '__RRRRRRRR__',
-    '__RRRRRRRR__',
-    '__RRRRRRRR__',
-    '___RRRRRR___',
-    '___rrrrrr___',
-    '___rrrrrr___',
-    '__nnnnnnnn__',
-    '_nnnnnnnnnn_',
-    '_nnnnnnnnnn_',
-    '___nnnnnn___',
-    '___nnnnnn___',
-    '__kk____kk__',
-    '__kk____kk__',
+    '___RRRR___',
+    '___RRRR___',
+    '__RRRRRR__',
+    '__RRRRRR__',
+    '_RWWKWWKR_',
+    '_RWWKWWKR_',
+    '_RRRRRRRR_',
+    '__RRRRRR__',
+    '__rrrrrr__',
+    '__nnnnnn__',
+    '__nnnnnn__',
+    '_nnnnnnnn_',
+    '_nnnnnnnn_',
+    '__nnnnnn__',
+    '__nnnnnn__',
+    '_kk____kk_',
+    '_kk____kk_',
   ]
 ];
 
@@ -219,43 +322,42 @@ const PIXEL_COLORS = {
   'S': '#44aa44', 's': '#228822',
   'D': '#8a4a0a', 'd': '#6a3a0a',
   'M': '#aa6a2a', 'm': '#884400',
-  'E': '#ff0', 'e': '#f00',
+  'E': '#ff4444', 'e': '#cc0000',
   'T': '#ff6666', 't': '#cc3333',
   'L': '#aaddff', 'l': '#88bbdd',
   'Z': '#9933ff', 'z': '#6600cc',
 };
 
 const SPRITE_GOURD = [
-  '____RRRR____',
-  '___RRRRRR___',
-  '__RRRRRRRR__',
-  '_RWRKRKRKWR_',
-  '_RRRRRRRRRR_',
-  '__RRRRRRRR__',
-  '__RRRRRRRR__',
-  '___RRRRRR___',
-  '___RRRRRR___',
-  '___rrrrrr___',
-  '___rrrrrr___',
-  '__nnnnnnnn__',
-  '__nnnnnnnn__',
-  '__nnnnnnnn__',
-  '___nnnnnn___',
-  '___nnnnnn___',
-  '___kk__kk___',
-  '___kk__kk___',
+  '___RRRR___',
+  '___RRRR___',
+  '__RRRRRR__',
+  '__RRRRRR__',
+  '_RWWKWWKR_',
+  '_RWWKWWKR_',
+  '_RRRRRRRR_',
+  '__RRRRRR__',
+  '__rrrrrr__',
+  '__nnnnnn__',
+  '__nnnnnn__',
+  '_nnnnnnnn_',
+  '_nnnnnnnn_',
+  '__nnnnnn__',
+  '__nnnnnn__',
+  '__kk__kk__',
+  '__kk__kk__',
 ];
 
 const SPRITE_SNAKE = [
-  '_sss_______',
-  'ssSSss_____',
-  'sSSESSs____',
+  '_ssss______',
+  'sSSSSs_____',
+  'sSWWSSs____',
   'sSSSSSSs___',
-  '_sSSSSSs___',
+  '_sSssSSs___',
   '__sSSSSs___',
-  '__sSSSSs___',
+  '__sSssSs___',
   '_sSSSSSs___',
-  'sSSSSSSs___',
+  'sSSSsSSs___',
   'sSSSSSSs___',
   '_sSSSSs____',
   '__sSSs_____',
@@ -264,33 +366,33 @@ const SPRITE_SNAKE = [
 ];
 
 const SPRITE_SCORPION = [
-  '_____DD____',
-  '____DDDD___',
-  '___DDDDDD__',
-  '__DDDDDDDD_',
-  '_DDMDDDDDD_',
-  '_DDDDDDDDDD',
-  '_DDDDDDDDDD',
-  '__DDDDDDDD_',
-  '__DDEDDDDD_',
-  '___DDDDDD__',
-  '____DDDD___',
-  '____DDDD___',
-  '___dd__dd__',
-  '___dd__dd__',
+  'dd______dd_',
+  '_DD____DD__',
+  '___DDDD____',
+  '__DDDDDD___',
+  '_DDMDDDDD__',
+  '_DDDDDDDDD_',
+  '_DDDDDDDDD_',
+  '__DDDDDDE__',
+  '__DDEDDDd__',
+  '___DDDDd___',
+  '___DDDDd___',
+  '___dd_dd___',
+  '__dd___dd__',
+  '__dd___dd__',
 ];
 
 const SPRITE_BAT = [
   '____DDDD____',
   '___DDDDDD___',
-  '___DDEEDED___',
-  '___DDDDDDD___',
-  '__DDDDDDDDD__',
+  '___DDEEDD___',
+  '___DDDDDD___',
+  '__DDDDDDDD__',
   '_DDDDDDDDDD_',
-  'DDDDDDDDDDDDD',
-  'DDDDD__DDDDDD',
-  'DDDD____DDDDD',
-  'D_D______D_D_',
+  'DDDDDDDDDDDD',
+  'DDDD__DDDDDD',
+  'DDD____DDDDD',
+  'D_D______D_D',
 ];
 
 const SPRITE_BOSS = [
@@ -299,11 +401,11 @@ const SPRITE_BOSS = [
   '____ZZZZZZZZ____',
   '___ZZZZZZZZZZ___',
   '__ZZZZZZZZZZZZ__',
-  '__ZZZZZZZZZZZZ__',
+  '__ZZWZZZZZWZZZ__',
   '_ZZEEZZZZZEEZZ_',
   '_ZZZZZZZZZZZZZ_',
   '_ZZZKKKKKKKZZZ_',
-  '_ZZZZZZZZZZZZ_',
+  '_ZZZKWWWWKKZZZ_',
   '__ZZZTTTTTZZZ__',
   '__ZZZTTTTTZZZ__',
   '__ZZZZZZZZZZZ__',
@@ -773,12 +875,12 @@ function updateBossProjectiles() {
       const dx = player.x + player.w / 2 - p.x;
       const dy = player.y + player.h / 2 - p.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      p.vx += (dx / dist) * 0.3;
-      p.vy += (dy / dist) * 0.3;
+      p.vx += (dx / dist) * 0.21;
+      p.vy += (dy / dist) * 0.21;
       const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-      if (speed > 5) {
-        p.vx = (p.vx / speed) * 5;
-        p.vy = (p.vy / speed) * 5;
+      if (speed > 3.5) {
+        p.vx = (p.vx / speed) * 3.5;
+        p.vy = (p.vy / speed) * 3.5;
       }
     }
     p.x += p.vx;
@@ -791,15 +893,27 @@ function updateBossProjectiles() {
 function drawBossProjectiles() {
   for (const p of bossProjectiles) {
     if (p.homing) {
-      ctx.fillStyle = '#ff4400';
-      ctx.fillRect(p.x - 5, p.y - 5, 10, 10);
-      ctx.fillStyle = '#ffaa00';
-      ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
-      ctx.fillStyle = 'rgba(255,100,0,0.3)';
+      const pGrad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 12);
+      pGrad.addColorStop(0, '#ffaa00');
+      pGrad.addColorStop(0.5, '#ff4400');
+      pGrad.addColorStop(1, 'rgba(255,50,0,0)');
+      ctx.fillStyle = pGrad;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = '#ff6600';
+      ctx.fillRect(p.x - 5, p.y - 5, 10, 10);
+      ctx.fillStyle = '#ffcc00';
+      ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
     } else {
+      const pGrad = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, 8);
+      pGrad.addColorStop(0, '#ff88ff');
+      pGrad.addColorStop(0.5, '#ff00ff');
+      pGrad.addColorStop(1, 'rgba(200,0,200,0)');
+      ctx.fillStyle = pGrad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = '#ff00ff';
       ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
       ctx.fillStyle = '#ff88ff';
@@ -835,12 +949,17 @@ function drawMovingPlatforms() {
   if (!lv.movingPlatforms) return;
 
   for (const mp of lv.movingPlatforms) {
-    ctx.fillStyle = '#4a9adb';
-    ctx.fillRect(mp.x, mp.y, mp.w, mp.h);
-    ctx.fillStyle = '#6abbeb';
-    ctx.fillRect(mp.x, mp.y, mp.w, 4);
-    ctx.fillStyle = '#3a8acb';
-    ctx.fillRect(mp.x, mp.y + mp.h - 3, mp.w, 3);
+    const mpGrad = ctx.createLinearGradient(mp.x, mp.y, mp.x, mp.y + mp.h);
+    mpGrad.addColorStop(0, '#6abbeb');
+    mpGrad.addColorStop(1, '#3a8acb');
+    ctx.fillStyle = mpGrad;
+    ctx.beginPath();
+    ctx.roundRect(mp.x, mp.y, mp.w, mp.h, 3);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(150,220,255,0.5)';
+    ctx.beginPath();
+    ctx.roundRect(mp.x, mp.y, mp.w, 4, 2);
+    ctx.fill();
 
     ctx.fillStyle = 'rgba(100,180,255,0.3)';
     const arrowX = mp.x + mp.w / 2;
@@ -879,8 +998,8 @@ function updateTraps() {
   for (const trap of lv.traps) {
     if (trap.type === 'spike') {
       if (aabb(player, trap) && invincibleTimer <= 0) {
-        player.hp--;
-        invincibleTimer = 60;
+        takeDamage(DAMAGE_PER_HIT);
+        invincibleTimer = 90;
         player.vy = -8;
         sound.hurt();
         screenShake.shake(5, 10);
@@ -915,20 +1034,16 @@ function drawTraps() {
 
   for (const trap of lv.traps) {
     if (trap.type === 'spike') {
-      ctx.fillStyle = '#999';
       for (let i = 0; i < trap.w; i += 8) {
+        const spikeGrad = ctx.createLinearGradient(trap.x + i, trap.y + trap.h, trap.x + i + 4, trap.y);
+        spikeGrad.addColorStop(0, '#777');
+        spikeGrad.addColorStop(0.5, '#aaa');
+        spikeGrad.addColorStop(1, '#ddd');
+        ctx.fillStyle = spikeGrad;
         ctx.beginPath();
         ctx.moveTo(trap.x + i, trap.y + trap.h);
         ctx.lineTo(trap.x + i + 4, trap.y);
         ctx.lineTo(trap.x + i + 8, trap.y + trap.h);
-        ctx.fill();
-      }
-      ctx.fillStyle = '#bbb';
-      for (let i = 0; i < trap.w; i += 8) {
-        ctx.beginPath();
-        ctx.moveTo(trap.x + i + 1, trap.y + trap.h);
-        ctx.lineTo(trap.x + i + 4, trap.y + 2);
-        ctx.lineTo(trap.x + i + 5, trap.y + trap.h);
         ctx.fill();
       }
     } else if (trap.type === 'crumble') {
@@ -937,10 +1052,18 @@ function drawTraps() {
       ctx.globalAlpha = alpha;
       ctx.fillStyle = '#aa6633';
       ctx.fillRect(trap.x, trap.y, trap.w, trap.h);
-      ctx.fillStyle = '#cc8844';
-      ctx.fillRect(trap.x, trap.y, trap.w, 4);
-      ctx.fillStyle = '#884422';
+      for (let dx = 0; dx < trap.w; dx += 8) {
+        ctx.fillStyle = trap.active ? '#cc4422' : '#cc8844';
+        ctx.fillRect(trap.x + dx, trap.y + 3, 3, trap.h - 3);
+      }
+      ctx.fillStyle = trap.active ? '#883311' : '#884422';
       ctx.fillRect(trap.x, trap.y + trap.h - 2, trap.w, 2);
+      ctx.fillStyle = trap.active ? '#aa5522' : '#cc8844';
+      ctx.fillRect(trap.x, trap.y, trap.w, 3);
+      if (trap.active && trap.timer > 15) {
+        ctx.fillStyle = `rgba(255,200,100,${(trap.timer - 15) / 15 * 0.3})`;
+        ctx.fillRect(trap.x, trap.y, trap.w, trap.h);
+      }
       ctx.globalAlpha = 1;
     }
   }
@@ -1022,25 +1145,29 @@ function buildLevel(idx) {
   }
 
   if (idx === 0) {
+    // 第1关：简单入门关卡，平台间距小，更容易跳跃
     const pDefs = [
-      [3,18],[7,16],[12,14],[17,16],[21,13],
-      [5,12],[10,10],[15,12],[20,10],
-      [3,8],[9,6],[14,8],[19,6],[23,8]
+      // 第一层平台（低）
+      [4,20],[8,19],[12,18],[16,19],[20,20],
+      // 第二层平台（中）
+      [3,16],[7,15],[11,14],[15,15],[19,16],[23,15],
+      // 第三层平台（高）
+      [5,12],[9,11],[13,10],[17,11],[21,12],
+      // 顶层平台
+      [8,8],[12,7],[16,8],[20,7]
     ];
     pDefs.forEach(([gx,gy]) => {
       lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*3, h: TILE });
     });
+    // 减少敌人数量
     const eDefs = [
-      [8*TILE, (GRID-2)*TILE, 'snake'],
-      [15*TILE, (GRID-2)*TILE, 'snake'],
-      [20*TILE, (GRID-2)*TILE, 'scorpion'],
-      [10*TILE, 9*TILE, 'snake'],
-      [18*TILE, 11*TILE, 'scorpion']
+      [10*TILE, (GRID-2)*TILE, 'snake'],
+      [18*TILE, (GRID-2)*TILE, 'snake']
     ];
     eDefs.forEach(([ex,ey,type]) => {
-      lv.enemies.push({ x: ex, y: ey, w: 28, h: 24, type, vx: type==='scorpion'?-1:-ENEMY_SPEED, alive: true });
+      lv.enemies.push({ x: ex, y: ey, w: 28, h: 24, type, vx: -ENEMY_SPEED, alive: true });
     });
-    const bDefs = [[4*TILE,17*TILE],[11*TILE,13*TILE],[18*TILE,15*TILE],[9*TILE,5*TILE],[21*TILE,9*TILE]];
+    const bDefs = [[6*TILE,19*TILE],[14*TILE,17*TILE],[10*TILE,13*TILE],[18*TILE,13*TILE],[14*TILE,9*TILE]];
     bDefs.forEach(([bx,by]) => {
       lv.bottles.push({ x: bx, y: by, w: 20, h: 24, collected: false });
     });
@@ -1049,15 +1176,13 @@ function buildLevel(idx) {
       { x: 20*TILE, y: (GRID-2)*TILE - 40, active: false }
     ];
     lv.exit = { x: 24*TILE, y: (GRID-2)*TILE - 40, w: 32, h: 40 };
+    // 简化移动平台
     lv.movingPlatforms = [
-      { x: 8*TILE, y: 12*TILE, w: TILE*3, h: TILE, startX: 8*TILE, startY: 12*TILE, endX: 16*TILE, endY: 12*TILE, speed: 1, type: 'horizontal', deltaX: 0, deltaY: 0 },
-      { x: 18*TILE, y: 8*TILE, w: TILE*2, h: TILE, startX: 18*TILE, startY: 8*TILE, endX: 18*TILE, endY: 16*TILE, speed: 0.8, type: 'vertical', deltaX: 0, deltaY: 0 },
-      { x: 3*TILE, y: 5*TILE, w: TILE*3, h: TILE, startX: 3*TILE, startY: 5*TILE, endX: 12*TILE, endY: 5*TILE, speed: 0.6, type: 'horizontal', deltaX: 0, deltaY: 0 }
+      { x: 10*TILE, y: 14*TILE, w: TILE*3, h: TILE, startX: 10*TILE, startY: 14*TILE, endX: 16*TILE, endY: 14*TILE, speed: 0.5, type: 'horizontal', deltaX: 0, deltaY: 0 }
     ];
+    // 减少陷阱
     lv.traps = [
-      { x: 14*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' },
-      { x: 20*TILE, y: 10*TILE, w: TILE*3, h: TILE, type: 'crumble', timer: 0, active: false },
-      { x: 6*TILE, y: (GRID-1)*TILE - 8, w: TILE*3, h: 8, type: 'spike' }
+      { x: 16*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' }
     ];
   } else if (idx === 1) {
     const pDefs = [
@@ -1066,65 +1191,72 @@ function buildLevel(idx) {
       [4,7],[8,5],[14,6],[20,5]
     ];
     pDefs.forEach(([gx,gy]) => {
-      lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*2, h: TILE });
+      lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*3, h: TILE });
+    });
+    // 第2关：中等难度
+    const pDefs = [
+      // 阶梯式上升
+      [3,20],[7,18],[11,16],[15,14],[19,12],[23,10],
+      // 补充平台
+      [5,15],[9,13],[13,11],[17,13],[21,15],
+      // 顶层
+      [8,8],[12,6],[16,8],[20,6]
+    ];
+    pDefs.forEach(([gx,gy]) => {
+      lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*3, h: TILE });
     });
     const eDefs = [
-      [6*TILE,(GRID-2)*TILE,'snake'],
-      [14*TILE,(GRID-2)*TILE,'bat'],
-      [22*TILE,(GRID-2)*TILE,'snake'],
-      [9*TILE,9*TILE,'bat'],
-      [17*TILE,9*TILE,'snake'],
-      [5*TILE,11*TILE,'bat']
+      [8*TILE,(GRID-2)*TILE,'snake'],
+      [16*TILE,(GRID-2)*TILE,'snake'],
+      [12*TILE,10*TILE,'bat']
     ];
     eDefs.forEach(([ex,ey,type]) => {
       lv.enemies.push({ x: ex, y: ey, w: 28, h: 24, type, vx: type==='bat'?BAT_SPEED:-ENEMY_SPEED, vy: type==='bat'?1:0, alive: true, baseY: ey });
     });
-    const bDefs = [[3*TILE,18*TILE],[11*TILE,14*TILE],[19*TILE,14*TILE],[6*TILE,11*TILE],[13*TILE,7*TILE]];
+    const bDefs = [[5*TILE,17*TILE],[13*TILE,13*TILE],[21*TILE,11*TILE],[10*TILE,7*TILE],[18*TILE,7*TILE]];
     bDefs.forEach(([bx,by]) => {
       lv.bottles.push({ x: bx, y: by, w: 20, h: 24, collected: false });
     });
     lv.checkpoints = [
-      { x: 8*TILE, y: (GRID-2)*TILE - 40, active: false },
+      { x: 10*TILE, y: (GRID-2)*TILE - 40, active: false },
       { x: 18*TILE, y: (GRID-2)*TILE - 40, active: false }
     ];
     lv.exit = { x: 24*TILE, y: (GRID-2)*TILE - 40, w: 32, h: 40 };
     lv.movingPlatforms = [
-      { x: 3*TILE, y: 11*TILE, w: TILE*2, h: TILE, startX: 3*TILE, startY: 11*TILE, endX: 11*TILE, endY: 11*TILE, speed: 1.2, type: 'horizontal', deltaX: 0, deltaY: 0 },
-      { x: 15*TILE, y: 9*TILE, w: TILE*2, h: TILE, startX: 15*TILE, startY: 9*TILE, endX: 15*TILE, endY: 17*TILE, speed: 0.7, type: 'vertical', deltaX: 0, deltaY: 0 },
-      { x: 19*TILE, y: 6*TILE, w: TILE*2, h: TILE, startX: 19*TILE, startY: 6*TILE, endX: 24*TILE, endY: 6*TILE, speed: 0.9, type: 'horizontal', deltaX: 0, deltaY: 0 }
+      { x: 6*TILE, y: 12*TILE, w: TILE*3, h: TILE, startX: 6*TILE, startY: 12*TILE, endX: 14*TILE, endY: 12*TILE, speed: 0.5, type: 'horizontal', deltaX: 0, deltaY: 0 }
     ];
     lv.traps = [
-      { x: 10*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' },
-      { x: 22*TILE, y: 16*TILE, w: TILE*2, h: TILE, type: 'crumble', timer: 0, active: false },
-      { x: 16*TILE, y: (GRID-1)*TILE - 8, w: TILE*3, h: 8, type: 'spike' },
-      { x: 7*TILE, y: 16*TILE, w: TILE*2, h: TILE, type: 'crumble', timer: 0, active: false }
+      { x: 14*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' }
     ];
   } else {
+    // 第3关：Boss关卡
     const pDefs = [
-      [3,20],[7,18],[12,16],[17,18],[22,16],
-      [5,14],[10,12],[15,14],[20,12],
-      [2,10],[8,8],[13,10],[18,8],[23,10],
-      [6,6],[12,5],[18,4]
+      // 下层平台
+      [3,20],[7,18],[11,16],[15,18],[19,16],[23,18],
+      // 中层平台
+      [5,14],[9,12],[13,14],[17,12],[21,14],
+      // 上层平台（Boss区域）
+      [8,8],[12,6],[16,8],[20,6],
+      // Boss平台
+      [18,4],[22,4]
     ];
     pDefs.forEach(([gx,gy]) => {
-      lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*2, h: TILE });
+      lv.platforms.push({ x: gx*TILE, y: gy*TILE, w: TILE*3, h: TILE });
     });
+    // Boss
     lv.enemies.push({
-      x: 20*TILE, y: 3*TILE, w: 48, h: 48,
-      type: 'boss', vx: -1, alive: true, hp: 3, maxHp: 3, flashTimer: 0,
-      shootTimer: 0, shootInterval: 90
+      x: 20*TILE, y: 2*TILE, w: 48, h: 48,
+      type: 'boss', vx: -0.5, alive: true, hp: 3, maxHp: 3, flashTimer: 0,
+      shootTimer: 0, shootInterval: 120 // 更长的射击间隔
     });
     const eDefs = [
-      [5*TILE,(GRID-2)*TILE,'snake'],
-      [10*TILE,(GRID-2)*TILE,'scorpion'],
-      [16*TILE,(GRID-2)*TILE,'snake'],
-      [8*TILE,7*TILE,'bat'],
-      [13*TILE,9*TILE,'snake']
+      [8*TILE,(GRID-2)*TILE,'snake'],
+      [16*TILE,(GRID-2)*TILE,'snake']
     ];
     eDefs.forEach(([ex,ey,type]) => {
-      lv.enemies.push({ x: ex, y: ey, w: 28, h: 24, type, vx: type==='bat'?BAT_SPEED:-ENEMY_SPEED, vy: type==='bat'?1:0, alive: true, baseY: ey });
+      lv.enemies.push({ x: ex, y: ey, w: 28, h: 24, type, vx: -ENEMY_SPEED, alive: true });
     });
-    const bDefs = [[4*TILE,19*TILE],[11*TILE,15*TILE],[19*TILE,17*TILE],[9*TILE,11*TILE],[21*TILE,11*TILE],[13*TILE,4*TILE]];
+    const bDefs = [[5*TILE,17*TILE],[13*TILE,13*TILE],[21*TILE,13*TILE],[10*TILE,9*TILE],[18*TILE,5*TILE]];
     bDefs.forEach(([bx,by]) => {
       lv.bottles.push({ x: bx, y: by, w: 20, h: 24, collected: false });
     });
@@ -1132,16 +1264,14 @@ function buildLevel(idx) {
       { x: 10*TILE, y: (GRID-2)*TILE - 40, active: false },
       { x: 16*TILE, y: (GRID-2)*TILE - 40, active: false }
     ];
-    lv.exit = { x: 24*TILE, y: 3*TILE, w: 32, h: 40 };
+    lv.exit = { x: 24*TILE, y: 2*TILE, w: 32, h: 40 };
+    // 简化移动平台
     lv.movingPlatforms = [
-      { x: 5*TILE, y: 13*TILE, w: TILE*2, h: TILE, startX: 5*TILE, startY: 13*TILE, endX: 14*TILE, endY: 13*TILE, speed: 1.1, type: 'horizontal', deltaX: 0, deltaY: 0 },
-      { x: 19*TILE, y: 10*TILE, w: TILE*2, h: TILE, startX: 19*TILE, startY: 10*TILE, endX: 19*TILE, endY: 18*TILE, speed: 0.9, type: 'vertical', deltaX: 0, deltaY: 0 }
+      { x: 10*TILE, y: 10*TILE, w: TILE*3, h: TILE, startX: 10*TILE, startY: 10*TILE, endX: 16*TILE, endY: 10*TILE, speed: 0.4, type: 'horizontal', deltaX: 0, deltaY: 0 }
     ];
+    // 减少陷阱
     lv.traps = [
-      { x: 12*TILE, y: (GRID-1)*TILE - 8, w: TILE*3, h: 8, type: 'spike' },
-      { x: 16*TILE, y: 16*TILE, w: TILE*2, h: TILE, type: 'crumble', timer: 0, active: false },
-      { x: 3*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' },
-      { x: 20*TILE, y: 12*TILE, w: TILE*2, h: TILE, type: 'crumble', timer: 0, active: false }
+      { x: 14*TILE, y: (GRID-1)*TILE - 8, w: TILE*2, h: 8, type: 'spike' }
     ];
   }
 }
@@ -1149,7 +1279,7 @@ function buildLevel(idx) {
 // ==================== PLAYER ====================
 let player = {
   x: 2*TILE, y: (GRID-2)*TILE - 48, w: 24, h: 48,
-  vx: 0, vy: 0, hp: 5, maxHp: 5,
+  vx: 0, vy: 0, hp: 6, maxHp: 6,
   onGround: false, facing: 1, specialCooldown: 0,
   ability: '', abilityDesc: '', coyoteTimer: 0
 };
@@ -1179,14 +1309,15 @@ function startGame(charIdx) {
   currentChar = charIdx;
   currentLevel = 0;
   score = 0;
-  lives = 3;
+  lives = 5;
+  damageAccumulator = 0;
   const ability = CHARACTER_ABILITIES[charIdx];
   player.ability = ability.effect;
   player.abilityDesc = ability.desc;
   if (ability.effect === 'extraHp') {
-    player.maxHp = 6;
+    player.maxHp = 7;
   } else {
-    player.maxHp = 5;
+    player.maxHp = 6;
   }
   buildLevel(0);
   resetPlayer();
@@ -1231,7 +1362,7 @@ function updateUI() {
   }
   hpStr += '  ×' + lives;
   document.getElementById('hpDisplay').textContent = hpStr;
-  document.getElementById('scoreDisplay').textContent = '分数: ' + score;
+  document.getElementById('scoreDisplay').textContent = '⭐ ' + score;
   const lvNames = ['森林冒险','翻山越岭','蛇精洞府'];
   document.getElementById('levelDisplay').textContent = '第' + (currentLevel+1) + '关: ' + lvNames[currentLevel];
   const abEl = document.getElementById('abilityDisplay');
@@ -1247,10 +1378,31 @@ function aabb(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
+function takeDamage(amount) {
+  damageAccumulator += amount;
+  if (damageAccumulator >= 1) {
+    const hits = Math.floor(damageAccumulator);
+    player.hp -= hits;
+    damageAccumulator -= hits;
+  }
+}
+
 function resolveCollision(entity, plat) {
   const overlapX = Math.min(entity.x + entity.w - plat.x, plat.x + plat.w - entity.x);
   const overlapY = Math.min(entity.y + entity.h - plat.y, plat.y + plat.h - entity.y);
-  if (overlapX < overlapY) {
+  
+  // 根据移动方向决定碰撞解析
+  if (entity.vy > 0 && overlapY < overlapX) {
+    // 正在下落，从上方碰撞
+    entity.y = plat.y - entity.h;
+    entity.vy = 0;
+    entity.onGround = true;
+  } else if (entity.vy < 0 && overlapY < overlapX) {
+    // 正在上升，从下方碰撞
+    entity.y = plat.y + plat.h;
+    entity.vy = 0;
+  } else if (overlapX < overlapY) {
+    // 水平碰撞
     if (entity.x + entity.w / 2 < plat.x + plat.w / 2) {
       entity.x = plat.x - entity.w;
     } else {
@@ -1258,6 +1410,7 @@ function resolveCollision(entity, plat) {
     }
     entity.vx = 0;
   } else {
+    // 默认垂直解析
     if (entity.y + entity.h / 2 < plat.y + plat.h / 2) {
       entity.y = plat.y - entity.h;
       entity.vy = 0;
@@ -1349,7 +1502,7 @@ function updatePlayer() {
 
   // Coyote time
   if (player.onGround) {
-    player.coyoteTimer = 6;
+    player.coyoteTimer = 10;
   } else {
     if (player.coyoteTimer > 0) player.coyoteTimer--;
   }
@@ -1367,7 +1520,17 @@ function updatePlayer() {
   if (player.x < 0) { player.x = 0; player.vx = 0; }
   if (player.x + player.w > W) { player.x = W - player.w; player.vx = 0; }
   if (player.y > H) {
-    player.hp = 0;
+    if (lastCheckpoint) {
+      player.x = lastCheckpoint.x;
+      player.y = lastCheckpoint.y;
+      player.vx = 0;
+      player.vy = 0;
+      invincibleTimer = 90;
+      screenShake.shake(4, 8);
+      sound.hurt();
+    } else {
+      player.hp = 0;
+    }
   }
   if (player.y < 0) { player.y = 0; player.vy = 0; }
 
@@ -1377,8 +1540,8 @@ function updatePlayer() {
   for (const bp of bossProjectiles) {
     if (aabb(player, { x: bp.x - 4, y: bp.y - 4, w: 8, h: 8 })) {
       if (invincibleTimer <= 0) {
-        player.hp--;
-        invincibleTimer = 60;
+        takeDamage(DAMAGE_PER_HIT);
+        invincibleTimer = 90;
         player.vy = -6;
         bp.life = 0;
         sound.hurt();
@@ -1438,8 +1601,8 @@ function updatePlayer() {
         }
       }
     } else if (invincibleTimer <= 0) {
-      player.hp--;
-      invincibleTimer = 60;
+      takeDamage(DAMAGE_PER_HIT);
+      invincibleTimer = 90;
       player.vx = (player.x < e.x) ? -6 : 6;
       player.vy = -6;
       sound.hurt();
@@ -1498,7 +1661,7 @@ function updatePlayer() {
     }
     if (aabb(player, b)) {
       b.collected = true;
-      if (player.hp < player.maxHp) player.hp++;
+      if (player.hp < player.maxHp) player.hp = Math.min(player.hp + 2, player.maxHp);
       score += 50;
       sound.collect();
       particleSystem.emitCollect(b.x + b.w / 2, b.y + b.h / 2);
@@ -1518,7 +1681,7 @@ function updatePlayer() {
       // Cannot exit until boss is defeated
     } else if (currentLevel < 2) {
       currentLevel++;
-      if (lives < 3) lives++;
+      if (lives < 5) lives++;
       buildLevel(currentLevel);
       resetPlayer();
       music.playLevelMusic(currentLevel);
@@ -1538,20 +1701,20 @@ function updateEnemies() {
     if (!e.alive) continue;
     if (e.type === 'boss') {
       if (e.flashTimer > 0) e.flashTimer--;
-      e.x += e.vx;
+      e.x += e.vx * 0.8;
       if (e.x < 14*TILE || e.x + e.w > 25*TILE) e.vx *= -1;
 
       // Boss shooting - multi-phase
       e.shootTimer++;
       let shootInterval, pattern;
       if (e.hp >= 3) {
-        shootInterval = 90;
+        shootInterval = 135;
         pattern = 'single';
       } else if (e.hp >= 2) {
-        shootInterval = 60;
+        shootInterval = 90;
         pattern = 'spread';
       } else {
-        shootInterval = 30;
+        shootInterval = 45;
         pattern = 'homing';
       }
       if (e.shootTimer >= shootInterval) {
@@ -1562,15 +1725,15 @@ function updateEnemies() {
           const dx = player.x - bx;
           const dy = player.y - by;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          bossProjectiles.push({ x: bx, y: by, vx: (dx / dist) * 3, vy: (dy / dist) * 3, life: 120 });
+          bossProjectiles.push({ x: bx, y: by, vx: (dx / dist) * 2.1, vy: (dy / dist) * 2.1, life: 120 });
         } else if (pattern === 'spread') {
           for (let i = -1; i <= 1; i++) {
             const angle = (i * 15) * Math.PI / 180;
             const dx = player.x - bx;
             const dy = player.y - by;
             const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const baseVx = (dx / dist) * 3;
-            const baseVy = (dy / dist) * 3;
+            const baseVx = (dx / dist) * 2.1;
+            const baseVy = (dy / dist) * 2.1;
             const cosA = Math.cos(angle);
             const sinA = Math.sin(angle);
             bossProjectiles.push({
@@ -1591,18 +1754,6 @@ function updateEnemies() {
             life: 150,
             homing: true
           });
-          // Summon a minion
-          if (lv.enemies.filter(e2 => e2.alive && e2.type !== 'boss').length < 6) {
-            const mType = Math.random() > 0.5 ? 'snake' : 'bat';
-            lv.enemies.push({
-              x: e.x + (Math.random() > 0.5 ? -TILE : e.w + TILE),
-              y: (GRID - 2) * TILE,
-              w: 28, h: 24, type: mType,
-              vx: mType === 'bat' ? BAT_SPEED : -ENEMY_SPEED,
-              vy: mType === 'bat' ? 1 : 0,
-              alive: true, baseY: (GRID - 2) * TILE
-            });
-          }
         }
       }
       continue;
@@ -1644,12 +1795,32 @@ function drawBackground() {
   ctx.fillRect(0, 0, W, H);
 
   if (currentLevel === 0) {
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+    skyGrad.addColorStop(0, '#87CEEB');
+    skyGrad.addColorStop(0.5, '#98D8C8');
+    skyGrad.addColorStop(1, '#2d5a1e');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H * 0.6);
+
+    const sunGlow = Math.sin(frameCount * 0.01) * 0.1 + 0.4;
+    ctx.fillStyle = `rgba(255,200,50,${sunGlow})`;
+    ctx.beginPath();
+    ctx.arc(700, 80, 60, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFE44D';
+    ctx.beginPath();
+    ctx.arc(700, 80, 30, 0, Math.PI * 2);
+    ctx.fill();
+
     const layer0 = PARALLAX_LAYERS[0];
     const off0 = (-player.x * layer0.speed) % 2000;
-    ctx.fillStyle = '#1a3a0e';
     for (const e of layer0.elements) {
       const ex = e.x + off0;
       const wrapped = ((ex % 2000) + 2000) % 2000;
+      const mGrad = ctx.createLinearGradient(wrapped, H - 100 - e.h, wrapped, H - 100);
+      mGrad.addColorStop(0, '#3a6a2a');
+      mGrad.addColorStop(1, '#2a4a1a');
+      ctx.fillStyle = mGrad;
       ctx.beginPath();
       ctx.moveTo(wrapped - 20, H - 100);
       ctx.lineTo(wrapped + e.w / 2, H - 100 - e.h);
@@ -1659,44 +1830,69 @@ function drawBackground() {
 
     const layer1 = PARALLAX_LAYERS[1];
     const off1 = (-player.x * layer1.speed) % 1800;
-    ctx.fillStyle = '#1a4a0e';
     for (const e of layer1.elements) {
       const ex = e.x + off1;
       const wrapped = ((ex % 1800) + 1800) % 1800;
+      ctx.fillStyle = '#4a3020';
       ctx.fillRect(wrapped + 8, H - 160, 8, 120);
+      const leafGrad = ctx.createRadialGradient(wrapped + 12, H - 160 - e.h / 2, 5, wrapped + 12, H - 160 - e.h / 2, e.h);
+      leafGrad.addColorStop(0, '#5aaa3a');
+      leafGrad.addColorStop(1, '#2a6a1a');
+      ctx.fillStyle = leafGrad;
       ctx.beginPath();
-      ctx.moveTo(wrapped - 20, H - 140);
-      ctx.lineTo(wrapped + 12, H - 140 - e.h);
-      ctx.lineTo(wrapped + 44, H - 140);
+      ctx.arc(wrapped + 12, H - 160 - e.h / 2, e.h / 2, 0, Math.PI * 2);
       ctx.fill();
     }
 
     const layer2 = PARALLAX_LAYERS[2];
     const off2 = (-player.x * layer2.speed) % 1200;
-    ctx.fillStyle = '#2a6a1a';
     for (const e of layer2.elements) {
       const ex = e.x + off2;
       const wrapped = ((ex % 1200) + 1200) % 1200;
-      ctx.fillRect(wrapped, H - 60, 30, e.h);
-      ctx.fillRect(wrapped + 5, H - 60 - e.h, 20, e.h);
+      const grassH = e.h + Math.sin(frameCount * 0.03 + wrapped * 0.1) * 3;
+      ctx.fillStyle = '#3a8a2a';
+      ctx.fillRect(wrapped, H - 60 - grassH / 2, 4, grassH);
+      ctx.fillStyle = '#55cc33';
+      ctx.beginPath();
+      ctx.arc(wrapped + 2, H - 60 - grassH, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = '#5aaa3a';
+    for (let i = 0; i < 20; i++) {
+      const fx = (i * 41 + 10) % W;
+      const fy = H - 55 + Math.sin(i * 2.3) * 8;
+      const bob = Math.sin(frameCount * 0.04 + i) * 2;
+      ctx.fillStyle = i % 3 === 0 ? '#ff6b9d' : i % 3 === 1 ? '#FFD700' : '#fff';
+      ctx.beginPath();
+      ctx.arc(fx, fy + bob, 3, 0, Math.PI * 2);
+      ctx.fill();
     }
   } else if (currentLevel === 1) {
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+    skyGrad.addColorStop(0, '#FF6B35');
+    skyGrad.addColorStop(0.4, '#FFA07A');
+    skyGrad.addColorStop(0.7, '#FFD700');
+    skyGrad.addColorStop(1, '#5a3a1e');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H * 0.5);
+
     const layer0 = PARALLAX_LAYERS[0];
     const off0 = (-player.x * layer0.speed) % 2000;
-    ctx.fillStyle = '#3a2a0e';
     for (const e of layer0.elements) {
       const ex = e.x + off0;
       const wrapped = ((ex % 2000) + 2000) % 2000;
+      const mGrad = ctx.createLinearGradient(wrapped, H - 100 - e.h, wrapped, H - 100);
+      mGrad.addColorStop(0, '#8899aa');
+      mGrad.addColorStop(0.6, '#667788');
+      mGrad.addColorStop(1, '#445566');
+      ctx.fillStyle = mGrad;
       ctx.beginPath();
       ctx.moveTo(wrapped, H - 100);
       ctx.lineTo(wrapped + 90, H - 100 - e.h);
       ctx.lineTo(wrapped + 180, H - 100);
       ctx.fill();
-    }
-    ctx.fillStyle = '#e8e8e8';
-    for (const e of layer0.elements) {
-      const ex = e.x + off0;
-      const wrapped = ((ex % 2000) + 2000) % 2000;
+      ctx.fillStyle = '#e8e8e8';
       ctx.beginPath();
       ctx.moveTo(wrapped + 60, H - 100 - e.h + 40);
       ctx.lineTo(wrapped + 90, H - 100 - e.h);
@@ -1704,34 +1900,79 @@ function drawBackground() {
       ctx.fill();
     }
 
+    for (let i = 0; i < 5; i++) {
+      const cx = ((i * 200 + frameCount * 0.3) % (W + 100)) - 50;
+      const cy = 60 + i * 30;
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 20 + i * 5, 0, Math.PI * 2);
+      ctx.arc(cx + 15, cy - 5, 15 + i * 3, 0, Math.PI * 2);
+      ctx.arc(cx - 10, cy + 3, 12 + i * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     const layer2 = PARALLAX_LAYERS[2];
     const off2 = (-player.x * layer2.speed) % 1200;
-    ctx.fillStyle = '#5a4a2a';
     for (const e of layer2.elements) {
       const ex = e.x + off2;
       const wrapped = ((ex % 1200) + 1200) % 1200;
+      ctx.fillStyle = '#5a4a2a';
       ctx.fillRect(wrapped, H - 50, 20, e.h);
       ctx.fillRect(wrapped + 3, H - 50 - e.h, 14, e.h);
+      ctx.fillStyle = '#ddd';
+      ctx.fillRect(wrapped + 3, H - 50 - e.h, 14, 4);
     }
   } else {
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0, '#0a0015');
+    skyGrad.addColorStop(0.3, '#1a0a3a');
+    skyGrad.addColorStop(0.7, '#0f0a2a');
+    skyGrad.addColorStop(1, '#1a1a2e');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    for (let i = 0; i < 40; i++) {
+      const sx = (i * 23 + 5) % W;
+      const sy = (i * 37 + 10) % (H * 0.7);
+      const twinkle = Math.sin(frameCount * 0.05 + i * 1.7) * 0.4 + 0.5;
+      ctx.fillStyle = `rgba(200,220,255,${twinkle})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1 + Math.sin(i * 0.8) * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     const layer0 = PARALLAX_LAYERS[0];
     const off0 = (-player.x * layer0.speed) % 1800;
-    ctx.fillStyle = '#0a0a1e';
     for (const e of layer0.elements) {
       const ex = e.x + off0;
       const wrapped = ((ex % 1800) + 1800) % 1800;
+      ctx.fillStyle = '#1a0a2e';
       ctx.beginPath();
       ctx.moveTo(wrapped, 0);
       ctx.lineTo(wrapped + 16, e.h);
       ctx.lineTo(wrapped + 32, 0);
       ctx.fill();
     }
-    ctx.fillStyle = 'rgba(100,200,255,0.3)';
-    for (let i = 0; i < 15; i++) {
-      const gx = (i * 57 + 10) % W;
-      const gy = (i * 43 + 30) % (H - 100);
+
+    for (let i = 0; i < 8; i++) {
+      const cx = (i * 120 + 50) % W;
+      const cy = 200 + Math.sin(i * 2.1) * 150;
+      const pulse = Math.sin(frameCount * 0.03 + i * 1.3) * 0.3 + 0.7;
+      const colors = ['rgba(100,200,255,0.3)', 'rgba(200,100,255,0.3)', 'rgba(100,255,200,0.3)'];
+      const cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 20);
+      cGrad.addColorStop(0, colors[i % 3].replace('0.3', String(0.5 * pulse)));
+      cGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = cGrad;
       ctx.beginPath();
-      ctx.arc(gx, gy, 2, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(180,220,255,${pulse * 0.8})`;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 15);
+      ctx.lineTo(cx - 5, cy);
+      ctx.lineTo(cx, cy + 5);
+      ctx.lineTo(cx + 5, cy);
       ctx.fill();
     }
   }
@@ -1741,19 +1982,92 @@ function drawPlatforms() {
   const lv = LEVELS[currentLevel];
   for (const p of lv.platforms) {
     if (p.y >= (GRID - 1) * TILE) {
-      ctx.fillStyle = currentLevel === 0 ? '#4a7a2a' : currentLevel === 1 ? '#8a6a3a' : '#3a3a5a';
-      ctx.fillRect(p.x, p.y, p.w, p.h);
-      ctx.fillStyle = currentLevel === 0 ? '#5a8a3a' : currentLevel === 1 ? '#9a7a4a' : '#4a4a6a';
-      ctx.fillRect(p.x, p.y, p.w, 4);
+      if (currentLevel === 0) {
+        ctx.fillStyle = '#5a3a20';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        for (let dx = 0; dx < p.w; dx += 8) {
+          ctx.fillStyle = '#6a4a2a';
+          ctx.fillRect(p.x + dx, p.y + 6, 3, p.h - 6);
+        }
+        ctx.fillStyle = '#4a8a2a';
+        ctx.fillRect(p.x, p.y, p.w, 5);
+        ctx.fillStyle = '#5aaa3a';
+        ctx.fillRect(p.x, p.y, p.w, 2);
+        for (let dx = 0; dx < p.w; dx += 12) {
+          const gh = 3 + Math.sin(dx * 0.5 + p.x) * 2;
+          ctx.fillStyle = '#5aaa3a';
+          ctx.fillRect(p.x + dx, p.y - gh, 3, gh);
+          ctx.fillStyle = '#6acc44';
+          ctx.fillRect(p.x + dx, p.y - gh, 2, 2);
+        }
+      } else if (currentLevel === 1) {
+        ctx.fillStyle = '#7a5a30';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        for (let dx = 0; dx < p.w; dx += 10) {
+          ctx.fillStyle = '#8a6a3a';
+          ctx.fillRect(p.x + dx, p.y + 4, 4, p.h - 4);
+        }
+        ctx.fillStyle = '#9a7a4a';
+        ctx.fillRect(p.x, p.y, p.w, 3);
+        ctx.fillStyle = '#6a4a20';
+        ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+      } else {
+        ctx.fillStyle = '#3a3a5a';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        for (let dx = 0; dx < p.w; dx += 6) {
+          ctx.fillStyle = `rgba(100,100,150,${0.3 + Math.sin(dx * 0.3) * 0.15})`;
+          ctx.fillRect(p.x + dx, p.y + 2, 2, p.h - 2);
+        }
+        ctx.fillStyle = '#5a5a7a';
+        ctx.fillRect(p.x, p.y, p.w, 3);
+        ctx.fillStyle = '#2a2a4a';
+        ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+      }
       continue;
     }
-    ctx.fillStyle = currentLevel === 0 ? '#6a4a2a' : currentLevel === 1 ? '#7a5a2a' : '#4a4a6a';
-    ctx.fillRect(p.x, p.y, p.w, p.h);
-    ctx.fillStyle = currentLevel === 0 ? '#8a6a3a' : currentLevel === 1 ? '#9a7a3a' : '#6a6a8a';
-    ctx.fillRect(p.x, p.y, p.w, 4);
     if (currentLevel === 0) {
+      ctx.fillStyle = '#6a4a2a';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      for (let dx = 0; dx < p.w; dx += 8) {
+        ctx.fillStyle = '#7a5a34';
+        ctx.fillRect(p.x + dx, p.y + 5, 3, p.h - 5);
+      }
       ctx.fillStyle = '#5aaa3a';
-      ctx.fillRect(p.x, p.y - 3, p.w, 6);
+      ctx.fillRect(p.x, p.y - 2, p.w, 6);
+      ctx.fillStyle = '#6acc44';
+      ctx.fillRect(p.x, p.y - 2, p.w, 2);
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
+    } else if (currentLevel === 1) {
+      ctx.fillStyle = '#7a5a2a';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      for (let dx = 0; dx < p.w; dx += 10) {
+        ctx.fillStyle = '#8a6a34';
+        ctx.fillRect(p.x + dx, p.y + 4, 4, p.h - 4);
+        ctx.fillStyle = '#6a4a1a';
+        ctx.fillRect(p.x + dx + 2, p.y + 8, 2, p.h - 8);
+      }
+      ctx.fillStyle = '#9a7a3a';
+      ctx.fillRect(p.x, p.y, p.w, 3);
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+    } else {
+      ctx.fillStyle = '#4a4a6a';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      for (let dx = 0; dx < p.w; dx += 6) {
+        ctx.fillStyle = `rgba(120,120,170,${0.3 + Math.sin(dx * 0.2 + p.x * 0.1) * 0.2})`;
+        ctx.fillRect(p.x + dx, p.y + 3, 2, p.h - 3);
+      }
+      ctx.fillStyle = '#6a6a8a';
+      ctx.fillRect(p.x, p.y, p.w, 3);
+      ctx.fillStyle = '#3a3a5a';
+      ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+      if (Math.sin(p.x * 0.1) > 0.5) {
+        ctx.fillStyle = 'rgba(100,200,255,0.15)';
+        ctx.beginPath();
+        ctx.arc(p.x + p.w / 2, p.y + p.h / 2, p.w / 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 }
@@ -1776,8 +2090,8 @@ function drawPlayer() {
   }
 
   const scale = 2;
-  const spriteX = px - 12;
-  const spriteY = py - 8;
+  const spriteX = px - 11;
+  const spriteY = py - 6;
 
   const currentSprite = !player.onGround ? ANIM_JUMP[0] : ANIM_WALK[animFrame];
 
@@ -1794,6 +2108,24 @@ function drawPlayer() {
     });
   });
 
+  ctx.fillStyle = g.color;
+  ctx.beginPath();
+  ctx.ellipse(px + player.w / 2, py - 4, 5, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = g.dark;
+  ctx.beginPath();
+  ctx.ellipse(px + player.w / 2, py - 6, 3, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#4a8a2a';
+  ctx.fillRect(px + player.w / 2 - 1, py - 10, 2, 4);
+
+  if (player.ability === 'fireBreath' && keys['KeyK']) {
+    ctx.fillStyle = 'rgba(255,100,0,0.4)';
+    ctx.beginPath();
+    ctx.arc(px + player.w / 2 + player.facing * 20, py + player.h / 2 - 4, 15, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.globalAlpha = 1;
   ctx.restore();
 }
@@ -1809,13 +2141,21 @@ function updateFireBalls() {
 
 function drawFireBalls() {
   for (const fb of fireBalls) {
-    ctx.fillStyle = '#ff6600';
+    const fbGrad = ctx.createRadialGradient(fb.x, fb.y, 1, fb.x, fb.y, 8);
+    fbGrad.addColorStop(0, '#ffee00');
+    fbGrad.addColorStop(0.4, '#ff6600');
+    fbGrad.addColorStop(1, 'rgba(255,50,0,0)');
+    ctx.fillStyle = fbGrad;
     ctx.beginPath();
-    ctx.arc(fb.x, fb.y, 6, 0, Math.PI * 2);
+    ctx.arc(fb.x, fb.y, 8, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ffcc00';
     ctx.beginPath();
-    ctx.arc(fb.x, fb.y, 3, 0, Math.PI * 2);
+    ctx.arc(fb.x, fb.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(fb.x, fb.y, 2, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -1830,17 +2170,36 @@ function drawEnemies() {
       const scale = 2;
       const sx = ex - 2;
       const sy = ey - 2;
-      drawPixelArt(ctx, sx, sy, SPRITE_SNAKE, scale);
+      const sway = Math.sin(frameCount * 0.08 + ex * 0.1) * 2;
+      drawPixelArt(ctx, sx + sway, sy, SPRITE_SNAKE, scale);
+      ctx.fillStyle = 'rgba(0,200,0,0.2)';
+      ctx.beginPath();
+      ctx.arc(ex + 8, ey + 10, 12, 0, Math.PI * 2);
+      ctx.fill();
     } else if (e.type === 'scorpion') {
       const scale = 2;
-      const sx = ex - 1;
+      const sx = ex - 3;
       const sy = ey;
       drawPixelArt(ctx, sx, sy, SPRITE_SCORPION, scale);
+      ctx.fillStyle = 'rgba(180,120,40,0.2)';
+      ctx.beginPath();
+      ctx.arc(ex + 10, ey + 12, 14, 0, Math.PI * 2);
+      ctx.fill();
     } else if (e.type === 'bat') {
       const scale = 2;
       const sx = ex - 2;
       const sy = ey;
+      const wingFlap = Math.sin(frameCount * 0.15) * 3;
+      ctx.save();
+      ctx.translate(ex + 12, ey + 10);
+      ctx.scale(1, 1 + wingFlap * 0.05);
+      ctx.translate(-(ex + 12), -(ey + 10));
       drawPixelArt(ctx, sx, sy, SPRITE_BAT, scale);
+      ctx.restore();
+      ctx.fillStyle = 'rgba(150,0,0,0.15)';
+      ctx.beginPath();
+      ctx.arc(ex + 10, ey + 8, 10, 0, Math.PI * 2);
+      ctx.fill();
     } else if (e.type === 'boss') {
       if (e.flashTimer > 0) {
         ctx.globalAlpha = 0.6;
@@ -1851,25 +2210,44 @@ function drawEnemies() {
         const scale = 3;
         const sx = ex - 12;
         const sy = ey - 6;
-        drawPixelArt(ctx, sx, sy, SPRITE_BOSS, scale);
+        const pulse = Math.sin(frameCount * 0.05) * 2;
+        drawPixelArt(ctx, sx, sy + pulse, SPRITE_BOSS, scale);
+        const auraGrad = ctx.createRadialGradient(ex + e.w/2, ey + e.h/2, 10, ex + e.w/2, ey + e.h/2, 40);
+        const hpRatio = e.hp / e.maxHp;
+        if (hpRatio > 0.5) {
+          auraGrad.addColorStop(0, 'rgba(150,50,255,0.2)');
+          auraGrad.addColorStop(1, 'rgba(150,50,255,0)');
+        } else {
+          auraGrad.addColorStop(0, 'rgba(255,50,50,0.3)');
+          auraGrad.addColorStop(1, 'rgba(255,50,50,0)');
+        }
+        ctx.fillStyle = auraGrad;
+        ctx.beginPath();
+        ctx.arc(ex + e.w/2, ey + e.h/2, 40, 0, Math.PI * 2);
+        ctx.fill();
       }
-      // HP bar
-      const barW = e.w;
-      const barH = 8;
-      const barX = ex;
-      const barY = ey - 18;
-      ctx.fillStyle = '#333';
-      ctx.fillRect(barX, barY, barW, barH);
-      ctx.fillStyle = e.hp > 1 ? '#f00' : '#ff0';
-      ctx.fillRect(barX, barY, barW * (e.hp / e.maxHp), barH);
-      ctx.strokeStyle = '#fff';
+      const barW = e.w + 10;
+      const barH = 10;
+      const barX = ex - 5;
+      const barY = ey - 22;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 3);
+      ctx.fill();
+      const hpColor = e.hp > 2 ? '#44cc44' : e.hp > 1 ? '#ffaa00' : '#ff4444';
+      ctx.fillStyle = hpColor;
+      ctx.beginPath();
+      ctx.roundRect(barX, barY, barW * (e.hp / e.maxHp), barH, 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(barX, barY, barW, barH);
-      // HP text
+      ctx.beginPath();
+      ctx.roundRect(barX, barY, barW, barH, 3);
+      ctx.stroke();
       ctx.fillStyle = '#fff';
-      ctx.font = '10px monospace';
+      ctx.font = 'bold 10px "Noto Sans SC", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(e.hp + '/' + e.maxHp, barX + barW / 2, barY - 3);
+      ctx.fillText('蛇精 ' + e.hp + '/' + e.maxHp, barX + barW / 2, barY - 4);
     }
   }
 }
@@ -1879,14 +2257,37 @@ function drawBottles() {
   for (const b of lv.bottles) {
     if (b.collected) continue;
     const bx = Math.round(b.x), by = Math.round(b.y);
-    const bob = Math.sin(frameCount * 0.05 + bx) * 3;
+    const bob = Math.sin(frameCount * 0.05 + bx) * 4;
     const scale = 2;
-    drawPixelArt(ctx, bx - 2, by + bob - 2, SPRITE_BOTTLE, scale);
-    // Glow
-    ctx.fillStyle = 'rgba(100,255,100,0.3)';
+
+    const outerGlow = Math.sin(frameCount * 0.08 + bx * 0.1) * 0.15 + 0.35;
+    const glowGrad = ctx.createRadialGradient(bx + 8, by + 10 + bob, 2, bx + 8, by + 10 + bob, 20);
+    glowGrad.addColorStop(0, `rgba(100,255,100,${outerGlow})`);
+    glowGrad.addColorStop(0.5, `rgba(50,200,50,${outerGlow * 0.5})`);
+    glowGrad.addColorStop(1, 'rgba(0,100,0,0)');
+    ctx.fillStyle = glowGrad;
     ctx.beginPath();
-    ctx.arc(bx + 8, by + 10 + bob, 14, 0, Math.PI * 2);
+    ctx.arc(bx + 8, by + 10 + bob, 20, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.save();
+    ctx.translate(bx + 8, by + 10 + bob);
+    const rot = Math.sin(frameCount * 0.03 + bx) * 0.1;
+    ctx.rotate(rot);
+    drawPixelArt(ctx, -8, -10, SPRITE_BOTTLE, scale);
+    ctx.restore();
+
+    for (let i = 0; i < 3; i++) {
+      const sparkAngle = frameCount * 0.06 + i * 2.1;
+      const sparkR = 14 + Math.sin(frameCount * 0.1 + i) * 4;
+      const sparkX = bx + 8 + Math.cos(sparkAngle) * sparkR;
+      const sparkY = by + 10 + bob + Math.sin(sparkAngle) * sparkR;
+      const sparkAlpha = Math.sin(frameCount * 0.12 + i * 1.5) * 0.5 + 0.5;
+      ctx.fillStyle = `rgba(255,255,150,${sparkAlpha})`;
+      ctx.beginPath();
+      ctx.arc(sparkX, sparkY, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 }
 
@@ -1900,15 +2301,22 @@ function drawCheckpoints() {
       ctx.fillStyle = '#ff4444';
       ctx.fillRect(cx + 18, cy, 16, 12);
       const glow = Math.sin(frameCount * 0.1) * 0.2 + 0.5;
-      ctx.fillStyle = `rgba(255,215,0,${glow})`;
+      const cpGrad = ctx.createRadialGradient(cx + 16, cy + 20, 5, cx + 16, cy + 20, 25);
+      cpGrad.addColorStop(0, `rgba(255,215,0,${glow})`);
+      cpGrad.addColorStop(1, 'rgba(255,215,0,0)');
+      ctx.fillStyle = cpGrad;
       ctx.beginPath();
-      ctx.arc(cx + 16, cy + 20, 20, 0, Math.PI * 2);
+      ctx.arc(cx + 16, cy + 20, 25, 0, Math.PI * 2);
       ctx.fill();
     } else {
       ctx.fillStyle = '#888';
       ctx.fillRect(cx + 14, cy, 4, 40);
       ctx.fillStyle = '#666';
       ctx.fillRect(cx + 18, cy, 16, 12);
+      ctx.fillStyle = 'rgba(150,150,150,0.15)';
+      ctx.beginPath();
+      ctx.arc(cx + 16, cy + 20, 15, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 }
@@ -1919,7 +2327,15 @@ function drawExit() {
   const ex = lv.exit;
   const canExit = currentLevel < 2 || lv.bossDefeated;
   const glow = Math.sin(frameCount * 0.08) * 0.3 + 0.7;
+
   if (canExit) {
+    const exitGrad = ctx.createRadialGradient(ex.x + ex.w/2, ex.y + ex.h/2, 5, ex.x + ex.w/2, ex.y + ex.h/2, 30);
+    exitGrad.addColorStop(0, `rgba(100,200,255,${glow * 0.6})`);
+    exitGrad.addColorStop(1, 'rgba(100,200,255,0)');
+    ctx.fillStyle = exitGrad;
+    ctx.beginPath();
+    ctx.arc(ex.x + ex.w/2, ex.y + ex.h/2, 30, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = `rgba(100,200,255,${glow})`;
     ctx.fillRect(ex.x + 2, ex.y + 4, ex.w - 4, ex.h - 4);
     ctx.fillStyle = '#0af';
@@ -1930,35 +2346,75 @@ function drawExit() {
   }
   ctx.fillRect(ex.x, ex.y, ex.w, ex.h);
   ctx.fillStyle = '#fff';
-  ctx.font = '16px monospace';
+  ctx.font = '16px "Noto Sans SC", monospace';
   ctx.textAlign = 'center';
   ctx.fillText(canExit ? '▶' : '🔒', ex.x + ex.w / 2, ex.y + ex.h / 2 + 5);
 }
 
 function drawMenu() {
-  ctx.fillStyle = '#1a1a2e';
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0f0c29');
+  grad.addColorStop(0.5, '#302b63');
+  grad.addColorStop(1, '#24243e');
+  ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 48px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('葫 芦 娃 闯 关', W / 2, 80);
+  for (let i = 0; i < 30; i++) {
+    const sx = (i * 97 + frameCount * 0.2) % W;
+    const sy = (i * 67) % H;
+    const alpha = 0.2 + Math.sin(frameCount * 0.02 + i) * 0.15;
+    ctx.fillStyle = `rgba(255,215,0,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  ctx.fillStyle = '#aaa';
-  ctx.font = '18px monospace';
-  ctx.fillText('选择你的葫芦娃开始冒险', W / 2, 120);
+  const titleGlow = Math.sin(frameCount * 0.03) * 0.3 + 0.7;
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,215,0,0.6)';
+  ctx.shadowBlur = 20 * titleGlow;
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 52px "Noto Sans SC", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('葫芦兄弟：拯救爷爷', W / 2, 75);
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(200,200,200,0.8)';
+  ctx.font = '16px "Noto Sans SC", sans-serif';
+  ctx.fillText('选择你的葫芦娃开始冒险', W / 2, 110);
 
   ctx.fillStyle = '#ff6666';
-  ctx.font = '16px monospace';
-  ctx.fillText('当前生命数: ×' + lives, W / 2, 150);
+  ctx.font = '14px "Noto Sans SC", monospace';
+  ctx.fillText('当前生命数: ×' + lives, W / 2, 138);
 
   const startX = 60;
   const spacing = 105;
   for (let i = 0; i < 7; i++) {
     const x = startX + i * spacing;
-    const y = 190;
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(x - 5, y - 5, 90, 200);
+    const y = 160;
+
+    const hover = Math.sin(frameCount * 0.04 + i * 0.8) * 3;
+    const cardY = y + hover;
+
+    const cardGrad = ctx.createLinearGradient(x - 5, cardY - 5, x - 5, cardY + 195);
+    cardGrad.addColorStop(0, 'rgba(255,255,255,0.12)');
+    cardGrad.addColorStop(1, 'rgba(255,255,255,0.03)');
+    ctx.fillStyle = cardGrad;
+    ctx.beginPath();
+    ctx.roundRect(x - 5, cardY - 5, 90, 200, 8);
+    ctx.fill();
+
+    ctx.strokeStyle = GOURDS[i].color + '66';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x - 5, cardY - 5, 90, 200, 8);
+    ctx.stroke();
+
+    const glowAlpha = Math.sin(frameCount * 0.05 + i) * 0.15 + 0.2;
+    ctx.fillStyle = GOURDS[i].color + Math.floor(glowAlpha * 255).toString(16).padStart(2, '0');
+    ctx.beginPath();
+    ctx.arc(x + 40, cardY + 45, 30, 0, Math.PI * 2);
+    ctx.fill();
 
     const menuScale = 5;
     const tempColors = { ...PIXEL_COLORS };
@@ -1968,82 +2424,86 @@ function drawMenu() {
       row.split('').forEach((pixel, colIndex) => {
         if (pixel !== '_' && tempColors[pixel]) {
           ctx.fillStyle = tempColors[pixel];
-          ctx.fillRect(x + 5 + colIndex * menuScale, y + 5 + rowIndex * menuScale, menuScale, menuScale);
+          ctx.fillRect(x + 5 + colIndex * menuScale, cardY + 5 + rowIndex * menuScale, menuScale, menuScale);
         }
       });
     });
 
     ctx.fillStyle = GOURDS[i].color;
-    ctx.font = '16px monospace';
+    ctx.font = 'bold 15px "Noto Sans SC", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(GOURDS[i].name, x + 40, y + 90);
+    ctx.fillText(GOURDS[i].name, x + 40, cardY + 100);
 
     ctx.fillStyle = '#ffd700';
-    ctx.font = '11px monospace';
-    ctx.fillText(CHARACTER_ABILITIES[i].ability, x + 40, y + 108);
+    ctx.font = '11px "Noto Sans SC", monospace';
+    ctx.fillText(CHARACTER_ABILITIES[i].ability, x + 40, cardY + 118);
 
-    ctx.fillStyle = '#888';
-    ctx.font = '10px monospace';
+    ctx.fillStyle = 'rgba(180,180,180,0.8)';
+    ctx.font = '10px "Noto Sans SC", monospace';
     const desc = CHARACTER_ABILITIES[i].desc;
     if (desc.length > 8) {
-      ctx.fillText(desc.substring(0, 8), x + 40, y + 124);
-      ctx.fillText(desc.substring(8), x + 40, y + 138);
+      ctx.fillText(desc.substring(0, 8), x + 40, cardY + 136);
+      ctx.fillText(desc.substring(8), x + 40, cardY + 150);
     } else {
-      ctx.fillText(desc, x + 40, y + 124);
+      ctx.fillText(desc, x + 40, cardY + 136);
     }
 
-    ctx.fillStyle = '#666';
-    ctx.font = '14px monospace';
-    ctx.fillText('按 ' + (i + 1), x + 40, y + 165);
+    ctx.fillStyle = GOURDS[i].color + 'aa';
+    ctx.font = '13px "Noto Sans SC", monospace';
+    ctx.fillText('按 ' + (i + 1), x + 40, cardY + 180);
   }
 
-  ctx.fillStyle = '#666';
-  ctx.font = '14px monospace';
+  ctx.fillStyle = 'rgba(150,150,150,0.7)';
+  ctx.font = '13px "Noto Sans SC", monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('WASD移动 | G跳跃 | 数字键1-7选择角色', W / 2, 480);
-  ctx.fillText('从上方踩踏敌人消灭它们 | K使用特殊能力', W / 2, 510);
-  ctx.fillText('收集葫芦瓶恢复生命 | 到达出口过关', W / 2, 540);
-  ctx.fillText('ESC暂停 | M静音 | F1调试模式', W / 2, 570);
+  ctx.fillText('WASD移动 | G跳跃 | 数字键1-7选择角色', W / 2, 460);
+  ctx.fillText('从上方踩踏敌人消灭它们 | K使用特殊能力', W / 2, 485);
+  ctx.fillText('收集葫芦瓶恢复生命 | 到达出口过关', W / 2, 510);
+  ctx.fillText('ESC暂停 | M静音 | F1调试模式', W / 2, 535);
 
-  ctx.fillStyle = '#444';
-  ctx.font = '12px monospace';
-  ctx.fillText('纯HTML5 Canvas游戏 | 无外部依赖', W / 2, H - 30);
+  ctx.fillStyle = 'rgba(100,100,100,0.5)';
+  ctx.font = '11px "Noto Sans SC", monospace';
+  ctx.fillText('纯HTML5 Canvas游戏 | 无外部依赖', W / 2, H - 25);
 }
 
 function drawGameOver() {
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
   ctx.fillRect(0, 0, W, H);
 
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,50,50,0.6)';
+  ctx.shadowBlur = 20;
   ctx.fillStyle = '#ff3333';
-  ctx.font = 'bold 56px monospace';
+  ctx.font = 'bold 56px "Noto Sans SC", monospace';
   ctx.textAlign = 'center';
   ctx.fillText('游戏结束', W / 2, H / 2 - 40);
+  ctx.restore();
 
-  ctx.fillStyle = '#fff';
-  ctx.font = '24px monospace';
+  ctx.fillStyle = '#ffd700';
+  ctx.font = '24px "Noto Sans SC", monospace';
   ctx.fillText('最终分数: ' + score, W / 2, H / 2 + 20);
 
-  ctx.fillStyle = '#aaa';
-  ctx.font = '18px monospace';
+  ctx.fillStyle = 'rgba(200,200,200,0.8)';
+  ctx.font = '18px "Noto Sans SC", monospace';
   ctx.fillText('按 R 重新开始', W / 2, H / 2 + 70);
 }
 
 function drawVictory() {
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
   ctx.fillRect(0, 0, W, H);
 
-  for (let i = 0; i < 5; i++) {
-    const fx = W / 2 + Math.sin(frameCount * 0.03 + i * 1.3) * 200;
-    const fy = 100 + Math.cos(frameCount * 0.02 + i) * 80;
-    const colors = ['#f00', '#ff0', '#0f0', '#0ff', '#f0f'];
+  for (let i = 0; i < 8; i++) {
+    const fx = W / 2 + Math.sin(frameCount * 0.03 + i * 0.9) * 250;
+    const fy = 120 + Math.cos(frameCount * 0.02 + i * 1.1) * 100;
+    const colors = ['#ff6b6b', '#ffd700', '#4ecdc4', '#a78bfa', '#ff69b4', '#00ff88', '#00ccff', '#ff8c00'];
     ctx.fillStyle = colors[i];
     ctx.beginPath();
-    ctx.arc(fx, fy, 8 + Math.sin(frameCount * 0.1 + i) * 4, 0, Math.PI * 2);
+    ctx.arc(fx, fy, 10 + Math.sin(frameCount * 0.1 + i) * 5, 0, Math.PI * 2);
     ctx.fill();
     for (let j = 0; j < 8; j++) {
       const angle = (j / 8) * Math.PI * 2 + frameCount * 0.02;
-      const len = 15 + Math.sin(frameCount * 0.1 + j) * 8;
-      ctx.strokeStyle = colors[(i + j) % 5];
+      const len = 18 + Math.sin(frameCount * 0.1 + j) * 10;
+      ctx.strokeStyle = colors[(i + j) % 8];
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(fx, fy);
@@ -2052,96 +2512,125 @@ function drawVictory() {
     }
   }
 
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,215,0,0.8)';
+  ctx.shadowBlur = 25;
   ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 56px monospace';
+  ctx.font = 'bold 56px "Noto Sans SC", monospace';
   ctx.textAlign = 'center';
   ctx.fillText('恭喜通关！', W / 2, H / 2 - 40);
+  ctx.restore();
 
   ctx.fillStyle = '#fff';
-  ctx.font = '24px monospace';
+  ctx.font = '24px "Noto Sans SC", monospace';
   ctx.fillText('最终分数: ' + score, W / 2, H / 2 + 20);
 
-  ctx.fillStyle = '#0f0';
-  ctx.font = '20px monospace';
+  ctx.fillStyle = '#4ecdc4';
+  ctx.font = '20px "Noto Sans SC", monospace';
   ctx.fillText('葫芦娃们成功打败了蛇精！', W / 2, H / 2 + 60);
 
-  ctx.fillStyle = '#aaa';
-  ctx.font = '18px monospace';
+  ctx.fillStyle = 'rgba(200,200,200,0.8)';
+  ctx.font = '18px "Noto Sans SC", monospace';
   ctx.fillText('按 R 返回菜单', W / 2, H / 2 + 110);
 }
 
 function drawPauseOverlay() {
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
   ctx.fillRect(0, 0, W, H);
 
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,255,255,0.4)';
+  ctx.shadowBlur = 15;
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 48px monospace';
+  ctx.font = 'bold 48px "Noto Sans SC", monospace';
   ctx.textAlign = 'center';
   ctx.fillText('游戏暂停', W / 2, H / 2 - 60);
+  ctx.restore();
 
-  ctx.font = '24px monospace';
+  ctx.fillStyle = '#ccc';
+  ctx.font = '24px "Noto Sans SC", monospace';
   ctx.fillText('按 ESC 继续游戏', W / 2, H / 2 + 10);
 
   ctx.fillStyle = '#aaa';
-  ctx.font = '18px monospace';
+  ctx.font = '18px "Noto Sans SC", monospace';
   ctx.fillText('按 M ' + (gameMuted ? '取消静音' : '静音'), W / 2, H / 2 + 60);
   ctx.fillText('按 R 返回菜单', W / 2, H / 2 + 90);
 
-  // Show mute status
   ctx.fillStyle = gameMuted ? '#f44' : '#4f4';
-  ctx.font = '16px monospace';
-  ctx.fillText(gameMuted ? '🔊 静音中' : '🔊 声音开启', W / 2, H / 2 + 130);
+  ctx.font = '16px "Noto Sans SC", monospace';
+  ctx.fillText(gameMuted ? '已静音' : '声音开启', W / 2, H / 2 + 130);
 }
 
 function drawHUD() {
   const g = GOURDS[currentChar];
+
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.roundRect(8, 8, 36, 36, 6);
+  ctx.fill();
   ctx.fillStyle = g.color;
-  ctx.fillRect(10, 10, 24, 24);
+  ctx.fillRect(12, 12, 28, 28);
   ctx.fillStyle = '#fff';
-  ctx.fillRect(14, 16, 4, 4);
-  ctx.fillRect(22, 16, 4, 4);
+  ctx.fillRect(16, 18, 4, 4);
+  ctx.fillRect(26, 18, 4, 4);
 
   if (player.ability) {
     const ab = CHARACTER_ABILITIES[currentChar];
     ctx.fillStyle = '#fff';
-    ctx.font = '12px monospace';
+    ctx.font = 'bold 12px "Noto Sans SC", monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(ab.name + '·' + ab.ability, 40, 28);
+    ctx.fillText(ab.name + '·' + ab.ability, 50, 24);
+    ctx.fillStyle = g.color;
+    ctx.font = '10px "Noto Sans SC", monospace';
+    ctx.fillText(ab.desc, 50, 38);
   }
 
   if (comboCounter >= 2) {
-    ctx.fillStyle = '#ff0';
-    ctx.font = 'bold 16px monospace';
+    const comboGlow = Math.sin(frameCount * 0.1) * 0.3 + 0.7;
+    ctx.fillStyle = `rgba(255,215,0,${comboGlow})`;
+    ctx.font = 'bold 18px "Noto Sans SC", monospace';
     ctx.textAlign = 'right';
     const comboText = comboCounter >= 5 ? 'UNSTOPPABLE x' + comboCounter : 'x' + comboCounter + ' COMBO';
-    ctx.fillText(comboText, W - 10, 28);
-    ctx.fillStyle = 'rgba(255,255,0,0.3)';
-    const barW = Math.min(comboTimer / COMBO_TIMEOUT, 1) * 120;
-    ctx.fillRect(W - 130, 32, barW, 4);
+    ctx.fillText(comboText, W - 10, 26);
+    ctx.fillStyle = 'rgba(255,215,0,0.3)';
+    const barW = Math.min(comboTimer / COMBO_TIMEOUT, 1) * 140;
+    ctx.beginPath();
+    ctx.roundRect(W - 150, 32, barW, 5, 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,215,0,0.6)';
+    ctx.beginPath();
+    ctx.roundRect(W - 150, 32, barW, 3, 1);
+    ctx.fill();
   }
 
-  // Stealth indicator
   if (stealthTimer > 0) {
     ctx.fillStyle = 'rgba(100,200,255,0.8)';
-    ctx.font = '14px monospace';
+    ctx.font = '14px "Noto Sans SC", monospace';
     ctx.textAlign = 'center';
     ctx.fillText('隐身中 ' + Math.ceil(stealthTimer / 60) + 's', W / 2, H - 20);
   }
 
-  // Boss HP bar in HUD (level 3)
   if (currentLevel === 2) {
     const lv = LEVELS[2];
     const boss = lv.enemies.find(e => e.type === 'boss' && e.alive);
     if (boss) {
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(W / 2 - 100, 10, 200, 12);
-      ctx.fillStyle = '#f00';
-      ctx.fillRect(W / 2 - 100, 10, 200 * (boss.hp / boss.maxHp), 12);
-      ctx.strokeStyle = '#fff';
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - 102, 8, 204, 16, 4);
+      ctx.fill();
+      const hpRatio = boss.hp / boss.maxHp;
+      const hpColor = hpRatio > 0.5 ? '#ff4444' : hpRatio > 0.25 ? '#ff8800' : '#ff0000';
+      ctx.fillStyle = hpColor;
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - 100, 10, 200 * hpRatio, 12, 3);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(W / 2 - 100, 10, 200, 12);
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - 100, 10, 200, 12, 4);
+      ctx.stroke();
       ctx.fillStyle = '#fff';
-      ctx.font = '10px monospace';
+      ctx.font = 'bold 10px "Noto Sans SC", monospace';
       ctx.textAlign = 'center';
       ctx.fillText('蛇精 ' + boss.hp + '/' + boss.maxHp, W / 2, 20);
     }
@@ -2210,7 +2699,7 @@ function gameLoop(timestamp) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(10, H - 60, 200, 50);
       ctx.fillStyle = '#0f0';
-      ctx.font = '14px monospace';
+      ctx.font = '12px monospace';
       ctx.textAlign = 'left';
       ctx.fillText('FPS: ' + fps, 16, H - 42);
       ctx.fillText('粒子: ' + particleSystem.particles.length, 16, H - 26);
