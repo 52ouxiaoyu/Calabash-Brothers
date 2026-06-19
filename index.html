@@ -364,6 +364,7 @@ let currentChapter = 0;
 let textIndex = 0;
 let displayedText = '';
 let isTyping = false;
+let typeCallback = null;
 
 const backgrounds = {
   forest: () => {
@@ -483,6 +484,7 @@ function typeText(text, callback) {
   displayedText = '';
   textIndex = 0;
   isTyping = true;
+  typeCallback = callback;
   
   const typeInterval = setInterval(() => {
     if (textIndex < text.length) {
@@ -492,7 +494,10 @@ function typeText(text, callback) {
     } else {
       clearInterval(typeInterval);
       isTyping = false;
-      if (callback) callback();
+      if (typeCallback) {
+        typeCallback();
+        typeCallback = null;
+      }
     }
   }, 30);
 }
