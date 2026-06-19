@@ -18,529 +18,377 @@ body {
   color: #eee;
 }
 #game {
-  width: 900px;
-  min-height: 650px;
+  width: 1000px;
+  min-height: 700px;
   background: #1a1a2e;
   border-radius: 16px;
   border: 3px solid #ffd700;
   box-shadow: 0 0 40px rgba(255,215,0,0.3);
   overflow: hidden;
 }
-#scene {
-  width: 100%;
-  height: 300px;
-  position: relative;
-  overflow: hidden;
-  background: #0a0a1a;
+#top-bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 2px solid #333;
 }
-#dialogue {
-  padding: 20px 30px;
-  min-height: 220px;
-  background: rgba(0,0,0,0.5);
+#chapter {
+  font-size: 16px;
+  color: #ffd700;
+  font-weight: bold;
+}
+#turn {
+  font-size: 14px;
+  color: #888;
+}
+#main-area {
+  display: flex;
+  height: 400px;
+}
+#left-panel {
+  flex: 1;
+  padding: 15px;
+  border-right: 2px solid #333;
+}
+#right-panel {
+  flex: 1;
+  padding: 15px;
+}
+.panel-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid;
+}
+.player-title { color: #4ecdc4; border-color: #4ecdc4; }
+.boss-title { color: #ff6b6b; border-color: #ff6b6b; }
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0;
+  font-size: 14px;
+}
+.stat-bar {
+  width: 120px;
+  height: 16px;
+  background: #333;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.stat-fill {
+  height: 100%;
+  border-radius: 8px;
+  transition: width 0.5s;
+}
+.hp-fill { background: linear-gradient(90deg, #ff6b6b, #ff8e8e); }
+.power-fill { background: linear-gradient(90deg, #ffd700, #ffed4a); }
+.brave-fill { background: linear-gradient(90deg, #4ecdc4, #7ee8e0); }
+.karma-fill { background: linear-gradient(90deg, #a78bfa, #c4b5fd); }
+.stat-name { width: 60px; }
+.stat-num { width: 40px; text-align: right; }
+#skills {
+  margin-top: 15px;
+}
+.skill-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  margin: 3px;
+  border-radius: 12px;
+  font-size: 12px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid #666;
+}
+.skill-active {
+  background: rgba(78,205,196,0.3);
+  border-color: #4ecdc4;
+  color: #4ecdc4;
+}
+#narrative {
+  padding: 15px 20px;
+  min-height: 150px;
+  background: rgba(0,0,0,0.3);
 }
 #speaker {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: bold;
   color: #ffd700;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 #text {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.8;
-  color: #fff;
-  min-height: 60px;
+  color: #ddd;
+  min-height: 50px;
 }
 #choices {
-  margin-top: 15px;
+  margin-top: 12px;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 10px;
 }
 .choice-btn {
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #4a4a6a, #2a2a4a);
-  border: 2px solid #666;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #3a3a5a, #2a2a4a);
+  border: 2px solid #555;
   border-radius: 8px;
   color: #fff;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.3s;
-  text-align: left;
 }
 .choice-btn:hover {
-  background: linear-gradient(135deg, #6a6a9a, #4a4a7a);
+  background: linear-gradient(135deg, #5a5a8a, #4a4a7a);
   border-color: #ffd700;
-  transform: translateX(5px);
+  transform: translateY(-2px);
 }
-#stats {
+#actions {
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
+  gap: 15px;
   padding: 15px;
   background: rgba(0,0,0,0.3);
   border-top: 2px solid #333;
 }
-.stat { text-align: center; }
-.stat-label { font-size: 12px; color: #888; }
-.stat-value { font-size: 20px; font-weight: bold; }
-.stat-value.hp { color: #ff6b6b; }
-.stat-value.power { color: #ffd700; }
-.stat-value.brave { color: #4ecdc4; }
-.stat-value.karma { color: #a78bfa; }
-#chapter {
-  text-align: center;
-  padding: 10px;
-  background: rgba(255,215,0,0.1);
-  font-size: 14px;
-  color: #ffd700;
-}
-#inventory {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(0,0,0,0.7);
-  padding: 8px 12px;
+.action-btn {
+  padding: 12px 24px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  border: 2px solid;
+  transition: all 0.3s;
+}
+.btn-fight {
+  background: linear-gradient(135deg, #ff6b6b, #cc4444);
+  border-color: #ff8888;
+  color: #fff;
+}
+.btn-fight:hover { transform: scale(1.05); }
+.btn-explore {
+  background: linear-gradient(135deg, #4ecdc4, #2a9d8f);
+  border-color: #6ee8e0;
+  color: #fff;
+}
+.btn-explore:hover { transform: scale(1.05); }
+.btn-rest {
+  background: linear-gradient(135deg, #ffd700, #cc9900);
+  border-color: #ffed4a;
+  color: #333;
+}
+.btn-rest:hover { transform: scale(1.05); }
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#start-screen {
+  padding: 40px;
+  text-align: center;
+}
+#start-screen h1 {
+  font-size: 36px;
   color: #ffd700;
+  margin-bottom: 20px;
+}
+#start-screen p {
+  color: #aaa;
+  margin-bottom: 30px;
+}
+.char-select {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.char-card {
+  width: 100px;
+  padding: 15px 10px;
+  background: linear-gradient(135deg, #2a2a4a, #1a1a3a);
+  border: 2px solid #555;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.char-card:hover {
+  border-color: #ffd700;
+  transform: translateY(-5px);
+}
+.char-name {
+  font-size: 14px;
+  font-weight: bold;
+  margin-top: 8px;
+}
+.char-skill {
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
 }
 </style>
 </head>
 <body>
 <div id="game">
-  <div id="chapter">序章：山雨欲来</div>
-  <div id="scene">
-    <canvas id="gameCanvas" width="900" height="300"></canvas>
-    <div id="inventory"></div>
+  <div id="start-screen">
+    <h1>🎮 葫芦兄弟：拯救爷爷</h1>
+    <p>选择你的葫芦娃，踏上拯救爷爷的冒险之旅！</p>
+    <p style="color:#ffd700; font-size:14px;">💡 提示：收集兄弟、提升实力，选择合适时机挑战蛇精</p>
+    <div class="char-select" id="charSelect"></div>
   </div>
-  <div id="dialogue">
-    <div id="speaker">旁白</div>
-    <div id="text"></div>
-    <div id="choices"></div>
-  </div>
-  <div id="stats">
-    <div class="stat">
-      <div class="stat-label">生命值</div>
-      <div class="stat-value hp" id="hpDisplay">100</div>
+  <div id="game-screen" style="display:none;">
+    <div id="top-bar">
+      <div id="chapter">序章</div>
+      <div id="turn">回合 1</div>
     </div>
-    <div class="stat">
-      <div class="stat-label">战斗力</div>
-      <div class="stat-value power" id="powerDisplay">10</div>
+    <div id="main-area">
+      <div id="left-panel">
+        <div class="panel-title player-title">🧑 我方</div>
+        <div id="playerStats"></div>
+        <div id="skills"></div>
+      </div>
+      <div id="right-panel">
+        <div class="panel-title boss-title">🐍 蛇精</div>
+        <div id="bossStats"></div>
+        <div style="margin-top:15px; padding:10px; background:rgba(255,107,107,0.1); border-radius:8px;">
+          <div style="color:#ff6b6b; font-size:12px;">⚠️ 蛇精实力分析</div>
+          <div id="bossAnalysis" style="color:#aaa; font-size:12px; margin-top:5px;"></div>
+        </div>
+      </div>
     </div>
-    <div class="stat">
-      <div class="stat-label">勇气</div>
-      <div class="stat-value brave" id="braveDisplay">50</div>
+    <div id="narrative">
+      <div id="speaker">旁白</div>
+      <div id="text"></div>
+      <div id="choices"></div>
     </div>
-    <div class="stat">
-      <div class="stat-label">善恶值</div>
-      <div class="stat-value karma" id="karmaDisplay">0</div>
+    <div id="actions">
+      <button class="action-btn btn-explore" id="btnExplore" onclick="doAction('explore')">🔍 探索</button>
+      <button class="action-btn btn-rest" id="btnRest" onclick="doAction('rest')">💤 休息</button>
+      <button class="action-btn btn-fight" id="btnFight" onclick="doAction('fight')">⚔️ 挑战蛇精</button>
     </div>
   </div>
 </div>
 
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+const characters = [
+  { id: 0, name: '大娃', color: '#ff0000', skill: '力大无穷', desc: '双倍伤害', icon: '🔴' },
+  { id: 1, name: '二娃', color: '#ff8c00', skill: '千里眼', desc: '预判敌人', icon: '🟠' },
+  { id: 2, name: '三娃', color: '#ffd700', skill: '铜头铁臂', desc: '减伤30%', icon: '🟡' },
+  { id: 3, name: '四娃', color: '#00cc00', skill: '喷火', desc: '持续伤害', icon: '🟢' },
+  { id: 4, name: '五娃', color: '#00cccc', skill: '吸水', desc: '回复生命', icon: '🔵' },
+  { id: 5, name: '六娃', color: '#0066ff', skill: '隐身', desc: '闪避攻击', icon: '🔷' },
+  { id: 6, name: '七娃', color: '#9933ff', skill: '宝葫芦', desc: '吸收伤害', icon: '🟣' }
+];
 
-const player = {
-  hp: 100, maxHp: 100, power: 10, brave: 50, karma: 0,
-  chapter: 0, inventory: [], allies: [], secrets: 0
-};
+let player = null;
+let boss = null;
+let turn = 1;
+let phase = 'start';
+let textIndex = 0, displayedText = '', isTyping = false;
 
-const story = {
-  chapters: [
-    {
-      title: '序章：山雨欲来',
-      scenes: [
-        {
-          bg: 'home', speaker: '旁白',
-          text: '葫芦山下，七个葫芦娃正在练习法术。突然，天空乌云密布，一道紫色闪电劈下...',
-          next: 1
-        },
-        {
-          bg: 'home', speaker: '👴 爷爷',
-          text: '孩子们！不好了！蛇精派兵攻上来了！你们快躲进葫芦里，我去引开他们！',
-          choices: [
-            { text: '👴 爷爷，我们和你一起战斗！', effect: { brave: 10 }, next: 2 },
-            { text: '🚪 听爷爷的话，先躲起来', effect: { brave: -5 }, next: 3 },
-            { text: '🤔 等等，爷爷你有计划吗？', effect: { brave: 5, karma: 5 }, next: 4 }
-          ]
-        },
-        {
-          bg: 'battle', speaker: '旁白',
-          text: '你和爷爷一起冲向敌人！战斗中，爷爷为了保护你，被蛇精的毒气击中...',
-          effect: { hp: -30 }, next: 5
-        },
-        {
-          bg: 'home', speaker: '旁白',
-          text: '你躲进葫芦里，听到外面传来打斗声。等一切安静后，你出来发现爷爷不见了...',
-          next: 5
-        },
-        {
-          bg: 'home', speaker: '👴 爷爷',
-          text: '好孩子，爷爷有办法。你去找你二哥，他有千里眼，能看到爷爷被关在哪里。记住，不要单独行动！',
-          effect: { karma: 10 }, next: 5
-        },
-        {
-          bg: 'home', speaker: '旁白',
-          text: '爷爷被蛇精抓走了！你必须去救他。但首先，你要找到其他兄弟，集合力量...\n\n💡 提示：你的选择会影响故事走向，善恶值会影响结局',
-          next: 6
-        }
-      ]
-    },
-    {
-      title: '第一章：兄弟重聚',
-      scenes: [
-        {
-          bg: 'forest', speaker: '旁白',
-          text: '你来到森林深处，寻找失散的兄弟。突然听到一阵打斗声...',
-          next: 1
-        },
-        {
-          bg: 'forest', speaker: '🐍 蛇精巡逻兵',
-          text: '嘿嘿，又来一个小葫芦！兄弟们，抓住他！',
-          choices: [
-            { text: '⚔️ 战斗！', effect: { power: 5, hp: -10 }, next: 2 },
-            { text: '🗣️ 等等！我可以告诉你们其他葫芦娃的下落', effect: { karma: -20 }, next: 3 },
-            { text: '💨 趁他们不注意溜走', effect: { brave: -10 }, next: 4 }
-          ]
-        },
-        {
-          bg: 'battle', speaker: '旁白',
-          text: '你勇敢地与敌人战斗！虽然受了伤，但成功击退了他们。',
-          effect: { power: 5 }, next: 5
-        },
-        {
-          bg: 'forest', speaker: '🐍 蛇精巡逻兵',
-          text: '哈哈，你很聪明！等我们抓到其他葫芦娃，就放了你爷爷...才怪！',
-          effect: { karma: -10, hp: -20 }, next: 5
-        },
-        {
-          bg: 'forest', speaker: '旁白',
-          text: '你悄悄溜走了，但心里很不是滋味...',
-          next: 5
-        },
-        {
-          bg: 'forest', speaker: '🔥 二娃',
-          text: '弟弟！我在这里！我用千里眼看到了，爷爷被关在蛇精洞府的最深处！',
-          choices: [
-            { text: '💪 太好了！我们一起去救爷爷！', effect: { brave: 10 }, next: 6 },
-            { text: '🤔 先去找其他兄弟吧，人多力量大', effect: { karma: 5 }, next: 7 },
-            { text: '😰 蛇精洞府太危险了...', effect: { brave: -5 }, next: 8 }
-          ]
-        },
-        {
-          bg: 'forest', speaker: '🔥 二娃',
-          text: '好！我知道三弟在东边的山洞里修炼，我们去找他！',
-          effect: { allies: ['二娃'] }, next: 9
-        },
-        {
-          bg: 'forest', speaker: '🔥 二娃',
-          text: '你说得对，人多力量大。我感应到四弟在南方的火焰山，五弟在西方的瀑布下。',
-          effect: { allies: ['二娃'], karma: 5 }, next: 9
-        },
-        {
-          bg: 'forest', speaker: '🔥 二娃',
-          text: '别怕！我会保护你的。而且...我有办法不走正门进去。',
-          next: 9
-        },
-        {
-          bg: 'forest', speaker: '旁白',
-          text: '你和二娃踏上了寻找其他兄弟的旅程。一路上，你们遇到了各种挑战...\n\n🎒 获得道具：二娃的千里眼镜（可以看穿迷雾）',
-          effect: { allies: ['二娃'] },
-          next: 10
-        }
-      ]
-    },
-    {
-      title: '第二章：三娃的试炼',
-      scenes: [
-        {
-          bg: 'cave', speaker: '旁白',
-          text: '你们来到一个神秘的山洞，里面传来金属碰撞的声音...',
-          next: 1
-        },
-        {
-          bg: 'cave', speaker: '🛡️ 三娃',
-          text: '你们是谁？这里是我的修炼之地！',
-          choices: [
-            { text: '👋 三哥，是我们啊！', effect: {}, next: 2 },
-            { text: '🛡️ 我们是来挑战你的！', effect: { brave: 15 }, next: 3 },
-            { text: '🤫 悄悄观察情况', effect: { karma: 5 }, next: 4 }
-          ]
-        },
-        {
-          bg: 'cave', speaker: '🛡️ 三娃',
-          text: '哦！是你们！爷爷被抓了？可恶的蛇精！我和你们一起去！',
-          effect: { allies: ['二娃', '三娃'] }, next: 5
-        },
-        {
-          bg: 'battle', speaker: '🛡️ 三娃',
-          text: '好小子，有胆量！来吧，让我看看你的实力！',
-          choices: [
-            { text: '⚔️ 全力以赴！', effect: { power: 10, hp: -20 }, next: 5 },
-            { text: '🤝 我们不是敌人', effect: { karma: 10 }, next: 5 }
-          ]
-        },
-        {
-          bg: 'cave', speaker: '旁白',
-          text: '你发现三娃正在独自修炼，似乎有什么心事...',
-          next: 6
-        },
-        {
-          bg: 'cave', speaker: '🛡️ 三娃',
-          text: '其实...我一直在想，如果当初我更强一点，爷爷就不会被抓走了。',
-          choices: [
-            { text: '💪 这不是你的错，我们一起努力', effect: { karma: 10 }, next: 7 },
-            { text: '😔 是啊，我们都太弱了', effect: { brave: -10 }, next: 7 },
-            { text: '🔥 那就用战斗来证明自己！', effect: { power: 5, brave: 10 }, next: 7 }
-          ]
-        },
-        {
-          bg: 'cave', speaker: '🛡️ 三娃',
-          text: '你说得对！我们葫芦兄弟团结起来，一定能救出爷爷！走！',
-          effect: { allies: ['二娃', '三娃'] }, next: 8
-        },
-        {
-          bg: 'cave', speaker: '旁白',
-          text: '三娃加入了你们的队伍！现在你们有三个人了...\n\n🛡️ 获得能力：三娃的铁头功（可以撞碎障碍物）',
-          next: 9
-        }
-      ]
-    },
-    {
-      title: '第三章：火焰山的秘密',
-      scenes: [
-        {
-          bg: 'fire', speaker: '旁白',
-          text: '你们来到火焰山，这里烈火熊熊，热浪扑面而来...',
-          next: 1
-        },
-        {
-          bg: 'fire', speaker: '🔥 四娃',
-          text: '谁敢闯入我的地盘！',
-          choices: [
-            { text: '🔥 四哥，是我们！爷爷被抓了！', effect: {}, next: 2 },
-            { text: '💧 你是真正的四娃吗？', effect: { karma: 5 }, next: 3 }
-          ]
-        },
-        {
-          bg: 'fire', speaker: '🔥 四娃',
-          text: '什么！爷爷被抓了？！可恶！我早就想去找蛇精算账了！走，我带你们去！',
-          effect: { allies: ['二娃', '三娃', '四娃'] }, next: 4
-        },
-        {
-          bg: 'fire', speaker: '🔥 四娃',
-          text: '你怎么知道我是真的？',
-          choices: [
-            { text: '😊 因为你的眼睛和爷爷描述的一样', effect: { karma: 10 }, next: 4 },
-            { text: '🤔 因为假的四娃不会这么热情', effect: {}, next: 4 }
-          ]
-        },
-        {
-          bg: 'fire', speaker: '🔥 四娃',
-          text: '对了，我在火焰山发现了一个秘密通道，可以直通蛇精洞府的后门！',
-          choices: [
-            { text: '🚪 太好了！我们走后门偷袭！', effect: { brave: 10 }, next: 5 },
-            { text: '🤔 会不会是陷阱？', effect: { karma: 5 }, next: 6 },
-            { text: '💪 不，我们要正面突破！', effect: { power: 10 }, next: 7 }
-          ]
-        },
-        {
-          bg: 'fire', speaker: '旁白',
-          text: '你们通过秘密通道潜入了蛇精洞府...',
-          effect: { karma: 5 }, next: 8
-        },
-        {
-          bg: 'fire', speaker: '🔥 四娃',
-          text: '有道理...让我先去探探路。',
-          next: 8
-        },
-        {
-          bg: 'fire', speaker: '🔥 四娃',
-          text: '好！让他们见识一下葫芦兄弟的厉害！',
-          effect: { power: 5 }, next: 8
-        },
-        {
-          bg: 'fire', speaker: '旁白',
-          text: '你们找到了五娃和六娃，七兄弟终于团聚了！\n\n🔥 获得能力：四娃的火焰喷射\n💧 获得能力：五娃的水流术\n💨 获得能力：六娃的隐身术',
-          effect: { allies: ['二娃', '三娃', '四娃', '五娃', '六娃'], hp: 30 },
-          next: 9
-        }
-      ]
-    },
-    {
-      title: '终章：蛇精洞府',
-      scenes: [
-        {
-          bg: 'boss', speaker: '旁白',
-          text: '你们终于来到了蛇精洞府的大殿。蛇精正站在高台上，爷爷被绑在柱子上...',
-          next: 1
-        },
-        {
-          bg: 'boss', speaker: '🐍 蛇精',
-          text: '哈哈哈！葫芦娃们，你们终于来了！不过...你们以为能救走他吗？',
-          choices: [
-            { text: '⚔️ 蛇精！放了爷爷！', effect: { brave: 20 }, next: 2 },
-            { text: '🗣️ 蛇精，你为什么要抓爷爷？', effect: { karma: 10 }, next: 3 },
-            { text: '🧘 集合七兄弟的力量！', condition: { allies: 5 }, effect: { power: 30 }, next: 4 }
-          ]
-        },
-        {
-          bg: 'boss', speaker: '🐍 蛇精',
-          text: '放了他？哼！你知道吗，你爷爷当年封印了我五百年的法力！我要讨回来！',
-          choices: [
-            { text: '💔 那是爷爷为了保护村民！', effect: { karma: 10 }, next: 4 },
-            { text: '😤 那是你的错！', effect: { brave: 10 }, next: 4 }
-          ]
-        },
-        {
-          bg: 'boss', speaker: '🐍 蛇精',
-          text: '因为我...我曾经也是这片土地的守护者！是你们人类破坏了森林，我才不得不反抗！',
-          choices: [
-            { text: '😔 对不起...我们不知道', effect: { karma: 20 }, next: 5 },
-            { text: '🤝 也许我们可以和解？', effect: { karma: 15 }, next: 5 },
-            { text: '⚔️ 不管怎样，你抓了爷爷就是不对！', effect: { brave: 15 }, next: 6 }
-          ]
-        },
-        {
-          bg: 'boss', speaker: '🐍 蛇精',
-          text: '哼！不管怎样，今天你们别想活着离开！',
-          effect: { power: 10 }, next: 6
-        },
-        {
-          bg: 'boss', speaker: '🐍 蛇精',
-          text: '和解？哈哈...也许吧。但首先，你们要证明自己的诚意！',
-          choices: [
-            { text: '🎁 我愿意分一半法力给你', effect: { karma: 20, power: -10 }, next: 7 },
-            { text: '🤝 我们一起重建森林', effect: { karma: 25 }, next: 7 },
-            { text: '⚔️ 用实力说话！', effect: { power: 10 }, next: 6 }
-          ]
-        },
-        {
-          bg: 'battle', speaker: '旁白',
-          text: '最终决战开始了！七兄弟齐心协力，与蛇精展开殊死搏斗...',
-          effect: { hp: -40 }, next: 8
-        },
-        {
-          bg: 'victory', speaker: '旁白',
-          text: '🎉 恭喜你！你做出了正确的选择！\n\n蛇精被你的诚意打动，同意释放爷爷，并与葫芦兄弟和解。从此，葫芦山恢复了和平...\n\n🌟 完美结局达成！',
-          ending: true
-        }
-      ]
-    }
-  ]
-};
+function initGame(charId) {
+  player = {
+    char: characters[charId],
+    hp: 100, maxHp: 100,
+    power: 15, maxPower: 50,
+    brave: 30, maxBrave: 100,
+    karma: 0,
+    allies: [characters[charId].skill],
+    skills: [characters[charId].skill],
+    level: 1
+  };
+  
+  boss = {
+    hp: 150, maxHp: 150,
+    power: 20,
+    brave: 80,
+    karma: -50,
+    phase: 1,
+    defeated: false
+  };
+  
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'block';
+  
+  updateUI();
+  showEvent('intro');
+}
 
-let currentChapter = 0, currentScene = 0;
-let textIndex = 0, displayedText = '', isTyping = false, typeCallback = null;
-
-const backgrounds = {
-  home: () => {
-    const grad = ctx.createLinearGradient(0, 0, 0, 300);
-    grad.addColorStop(0, '#87CEEB');
-    grad.addColorStop(1, '#98FB98');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 900, 300);
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(350, 100, 200, 150);
-    ctx.fillStyle = '#FF6347';
-    ctx.beginPath();
-    ctx.moveTo(300, 100);
-    ctx.lineTo(450, 30);
-    ctx.lineTo(600, 100);
-    ctx.fill();
-  },
-  forest: () => {
-    const grad = ctx.createLinearGradient(0, 0, 0, 300);
-    grad.addColorStop(0, '#1a3a0e');
-    grad.addColorStop(1, '#2d5a1e');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 900, 300);
-    ctx.fillStyle = '#3a2a0a';
-    for (let i = 0; i < 10; i++) {
-      const tx = i * 100 + 20;
-      ctx.fillRect(tx, 120, 15, 180);
-      ctx.fillStyle = '#2a6a1a';
-      ctx.beginPath();
-      ctx.arc(tx + 7, 100, 40, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#3a2a0a';
-    }
-  },
-  cave: () => {
-    ctx.fillStyle = '#1a0a2a';
-    ctx.fillRect(0, 0, 900, 300);
-    ctx.fillStyle = '#3a2a4a';
-    for (let i = 0; i < 12; i++) {
-      const sx = i * 80 + 10;
-      ctx.beginPath();
-      ctx.moveTo(sx, 0);
-      ctx.lineTo(sx + 10, 30 + Math.sin(i * 2) * 20);
-      ctx.lineTo(sx + 20, 0);
-      ctx.fill();
-    }
-  },
-  fire: () => {
-    const grad = ctx.createLinearGradient(0, 0, 0, 300);
-    grad.addColorStop(0, '#4a1a0a');
-    grad.addColorStop(1, '#8a2a0a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 900, 300);
-    ctx.fillStyle = '#ff4400';
-    for (let i = 0; i < 8; i++) {
-      const fx = (i * 110 + frameCount * 0.5) % 900;
-      ctx.beginPath();
-      ctx.arc(fx, 200, 20 + Math.sin(frameCount * 0.1 + i) * 10, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  },
-  battle: () => {
-    ctx.fillStyle = '#2a1a3a';
-    ctx.fillRect(0, 0, 900, 300);
-    ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 48px "Noto Sans SC"';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚔️ 战斗！', 450, 160);
-  },
-  boss: () => {
-    const grad = ctx.createLinearGradient(0, 0, 0, 300);
-    grad.addColorStop(0, '#1a0a2a');
-    grad.addColorStop(1, '#3a0a4a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 900, 300);
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 60px "Noto Sans SC"';
-    ctx.textAlign = 'center';
-    ctx.fillText('🐍 蛇精', 450, 160);
-  },
-  victory: () => {
-    const grad = ctx.createLinearGradient(0, 0, 0, 300);
-    grad.addColorStop(0, '#ffd700');
-    grad.addColorStop(1, '#ff8c00');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 900, 300);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 48px "Noto Sans SC"';
-    ctx.textAlign = 'center';
-    ctx.fillText('🎉 胜利！', 450, 160);
+function updateUI() {
+  document.getElementById('turn').textContent = '回合 ' + turn;
+  
+  document.getElementById('playerStats').innerHTML = `
+    <div class="stat-row">
+      <span class="stat-name">生命</span>
+      <div class="stat-bar"><div class="stat-fill hp-fill" style="width:${player.hp/player.maxHp*100}%"></div></div>
+      <span class="stat-num">${player.hp}/${player.maxHp}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-name">战力</span>
+      <div class="stat-bar"><div class="stat-fill power-fill" style="width:${player.power/player.maxPower*100}%"></div></div>
+      <span class="stat-num">${player.power}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-name">勇气</span>
+      <div class="stat-bar"><div class="stat-fill brave-fill" style="width:${player.brave}%"></div></div>
+      <span class="stat-num">${player.brave}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-name">善恶</span>
+      <div class="stat-bar"><div class="stat-fill karma-fill" style="width:${Math.min(100,Math.max(0,50+player.karma))}%"></div></div>
+      <span class="stat-num">${player.karma > 0 ? '+' : ''}${player.karma}</span>
+    </div>
+  `;
+  
+  document.getElementById('bossStats').innerHTML = `
+    <div class="stat-row">
+      <span class="stat-name">生命</span>
+      <div class="stat-bar"><div class="stat-fill hp-fill" style="width:${boss.hp/boss.maxHp*100}%"></div></div>
+      <span class="stat-num">${boss.hp}/${boss.maxHp}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-name">战力</span>
+      <div class="stat-bar"><div class="stat-fill power-fill" style="width:${boss.power/40*100}%"></div></div>
+      <span class="stat-num">${boss.power}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-name">气势</span>
+      <div class="stat-bar"><div class="stat-fill brave-fill" style="width:${boss.brave}%"></div></div>
+      <span class="stat-num">${boss.brave}</span>
+    </div>
+  `;
+  
+  const analysis = document.getElementById('bossAnalysis');
+  if (player.power >= boss.power && player.hp >= 80) {
+    analysis.textContent = '✅ 实力相当，可以一战！';
+    analysis.style.color = '#4ecdc4';
+  } else if (player.power >= boss.power * 0.8) {
+    analysis.textContent = '⚠️ 有风险，建议再提升实力';
+    analysis.style.color = '#ffd700';
+  } else {
+    analysis.textContent = '❌ 实力差距太大，建议继续修炼';
+    analysis.style.color = '#ff6b6b';
   }
-};
-
-let frameCount = 0;
-function animate() {
-  frameCount++;
-  const scene = story.chapters[currentChapter].scenes[currentScene];
-  if (scene && backgrounds[scene.bg]) {
-    backgrounds[scene.bg]();
-  }
-  requestAnimationFrame(animate);
+  
+  let skillsHtml = '<div style="margin-top:10px;">';
+  skillsHtml += '<div style="color:#888; font-size:12px; margin-bottom:5px;">已获得技能：</div>';
+  player.skills.forEach(skill => {
+    skillsHtml += `<span class="skill-tag skill-active">${skill}</span>`;
+  });
+  const allSkills = ['力大无穷', '千里眼', '铜头铁臂', '喷火', '吸水', '隐身', '宝葫芦'];
+  allSkills.forEach(skill => {
+    if (!player.skills.includes(skill)) {
+      skillsHtml += `<span class="skill-tag">???</span>`;
+    }
+  });
+  skillsHtml += '</div>';
+  document.getElementById('skills').innerHTML = skillsHtml;
 }
 
 function typeText(text, callback) {
   displayedText = '';
   textIndex = 0;
   isTyping = true;
-  typeCallback = callback;
+  document.getElementById('text').textContent = '';
   
   const typeInterval = setInterval(() => {
     if (textIndex < text.length) {
@@ -550,133 +398,223 @@ function typeText(text, callback) {
     } else {
       clearInterval(typeInterval);
       isTyping = false;
-      if (typeCallback) {
-        typeCallback();
-        typeCallback = null;
-      }
+      if (callback) callback();
     }
-  }, 30);
+  }, 25);
 }
 
-function showDialogue(scene) {
-  document.getElementById('speaker').textContent = scene.speaker;
-  document.getElementById('text').textContent = '';
+function showText(speaker, text, choices) {
+  document.getElementById('speaker').textContent = speaker;
   document.getElementById('choices').innerHTML = '';
-  
-  if (scene.effect) {
-    if (scene.effect.hp) player.hp = Math.max(0, Math.min(player.maxHp, player.hp + scene.effect.hp));
-    if (scene.effect.power) player.power = Math.max(0, player.power + scene.effect.power);
-    if (scene.effect.brave) player.brave = Math.max(0, Math.min(100, player.brave + scene.effect.brave));
-    if (scene.effect.karma) player.karma += scene.effect.karma;
-    if (scene.effect.allies) scene.effect.allies.forEach(a => { if (!player.allies.includes(a)) player.allies.push(a); });
-    updateStats();
-  }
-  
-  if (scene.inventory) {
-    scene.inventory.forEach(item => { if (!player.inventory.includes(item)) player.inventory.push(item); });
-    updateInventory();
-  }
-  
-  typeText(scene.text, () => {
-    const choicesDiv = document.getElementById('choices');
-    
-    if (scene.choices && scene.choices.length > 0) {
-      scene.choices.forEach(choice => {
-        if (choice.condition) {
-          let canChoose = true;
-          if (choice.condition.allies && player.allies.length < choice.condition.allies) canChoose = false;
-          if (!canChoose) return;
-        }
-        
+  typeText(text, () => {
+    if (choices) {
+      const choicesDiv = document.getElementById('choices');
+      choices.forEach(choice => {
         const btn = document.createElement('button');
         btn.className = 'choice-btn';
         btn.textContent = choice.text;
         btn.onclick = () => {
-          if (choice.effect) {
-            if (choice.effect.hp) player.hp = Math.max(0, Math.min(player.maxHp, player.hp + choice.effect.hp));
-            if (choice.effect.power) player.power = Math.max(0, player.power + choice.effect.power);
-            if (choice.effect.brave) player.brave = Math.max(0, Math.min(100, player.brave + choice.effect.brave));
-            if (choice.effect.karma) player.karma += choice.effect.karma;
-            if (choice.effect.allies) choice.effect.allies.forEach(a => { if (!player.allies.includes(a)) player.allies.push(a); });
-            updateStats();
-          }
-          currentScene = choice.next;
-          loadScene();
+          if (choice.effect) applyEffect(choice.effect);
+          if (choice.next) showEvent(choice.next);
+          updateUI();
         };
         choicesDiv.appendChild(btn);
       });
-    } else if (scene.next !== undefined && !scene.ending) {
-      const btn = document.createElement('button');
-      btn.className = 'choice-btn';
-      btn.textContent = '▶️ 继续';
-      btn.style.background = 'linear-gradient(135deg, #4a7a2a, #2a5a1a)';
-      btn.style.borderColor = '#6a9a4a';
-      btn.onclick = () => {
-        currentScene = scene.next;
-        loadScene();
-      };
-      choicesDiv.appendChild(btn);
-    } else if (scene.ending) {
-      document.getElementById('chapter').textContent = '🌟 游戏结束 - 感谢游玩！';
-      choicesDiv.innerHTML = '<button class="choice-btn" onclick="location.reload()" style="background:linear-gradient(135deg,#8a4a2a,#5a2a0a);border-color:#aa6a4a">🔄 再来一次</button>';
     }
   });
 }
 
-function loadScene() {
-  if (player.hp <= 0) {
-    document.getElementById('text').textContent = '💀 你倒下了...爷爷还在等着你...';
-    document.getElementById('choices').innerHTML = '<button class="choice-btn" onclick="location.reload()">🔄 重新开始</button>';
-    return;
+function applyEffect(effect) {
+  if (effect.hp) player.hp = Math.max(0, Math.min(player.maxHp, player.hp + effect.hp));
+  if (effect.power) player.power = Math.max(0, Math.min(player.maxPower, player.power + effect.power));
+  if (effect.brave) player.brave = Math.max(0, Math.min(player.maxBrave, player.brave + effect.brave));
+  if (effect.karma) player.karma += effect.karma;
+  if (effect.skill && !player.skills.includes(effect.skill)) {
+    player.skills.push(effect.skill);
   }
+  if (effect.bossHp) boss.hp = Math.max(0, boss.hp + effect.bossHp);
+  if (effect.bossPower) boss.power = Math.max(0, boss.power + effect.bossPower);
+  if (effect.bossBrave) boss.brave = Math.max(0, boss.brave + effect.bossBrave);
+  updateUI();
+}
+
+const events = {
+  intro: () => {
+    showText('旁白', `你选择了${player.char.name}！\n\n蛇精抓走了爷爷，你必须找到其他兄弟，集合力量去拯救他。\n\n每回合你可以：探索、休息、或挑战蛇精。`, [
+      { text: '🔍 开始探索', next: 'explore_1' }
+    ]);
+  },
   
-  const scene = story.chapters[currentChapter].scenes[currentScene];
-  if (!scene) {
-    if (currentChapter < story.chapters.length - 1) {
-      currentChapter++;
-      currentScene = 0;
-      document.getElementById('chapter').textContent = story.chapters[currentChapter].title;
-      loadScene();
-      return;
+  explore_1: () => {
+    const r = Math.random();
+    if (r < 0.3) {
+      showText('旁白', '你发现了一个神秘的山洞，里面似乎有东西...', [
+        { text: '进入山洞', next: 'cave_find', effect: { brave: 5 } },
+        { text: '绕过去', next: 'random_event' }
+      ]);
+    } else if (r < 0.6) {
+      showText('🐍 蛇精巡逻兵', '站住！你是葫芦娃？', [
+        { text: '⚔️ 战斗！', next: 'fight_patrol', effect: { brave: 10 } },
+        { text: '💨 逃跑', next: 'escape_patrol', effect: { brave: -5 } }
+      ]);
+    } else {
+      showText('旁白', '你发现了一些补给品...', [
+        { text: '拾取', next: 'loot', effect: { hp: 15, power: 3 } }
+      ]);
     }
-    return;
-  }
+  },
   
-  if (scene.chapter) currentChapter = scene.chapter;
-  document.getElementById('chapter').textContent = story.chapters[currentChapter].title;
-  showDialogue(scene);
-}
-
-function updateStats() {
-  document.getElementById('hpDisplay').textContent = player.hp;
-  document.getElementById('powerDisplay').textContent = player.power;
-  document.getElementById('braveDisplay').textContent = player.brave;
-  document.getElementById('karmaDisplay').textContent = player.karma;
-}
-
-function updateInventory() {
-  const inv = document.getElementById('inventory');
-  if (player.inventory.length > 0 || player.allies.length > 0) {
-    let html = '';
-    if (player.allies.length > 0) html += '👥 ' + player.allies.join('、') + '<br>';
-    if (player.inventory.length > 0) html += '🎒 ' + player.inventory.join('、');
-    inv.innerHTML = html;
+  cave_find: () => {
+    const allies = ['二娃', '三娃', '四娃', '五娃', '六娃', '七娃'];
+    const skillMap = { '二娃': '千里眼', '三娃': '铜头铁臂', '四娃': '喷火', '五娃': '吸水', '六娃': '隐身', '七娃': '宝葫芦' };
+    const found = allies.find(a => !player.skills.includes(skillMap[a]));
+    
+    if (found) {
+      showText(found, `终于找到你了！我是${found}！听说爷爷被抓了，我和你一起去！`, [
+        { text: '太好了！', next: 'join_' + found, effect: { skill: skillMap(found), power: 10 } }
+      ]);
+    } else {
+      showText('旁白', '山洞里只有一些金币...', [
+        { text: '拿走金币', next: 'random_event', effect: { power: 5 } }
+      ]);
+    }
+  },
+  
+  join_二娃: () => { showText('🔥 二娃', '我有千里眼，可以看穿敌人的弱点！', [{ text: '继续探索', next: 'random_event' }]); },
+  join_三娃: () => { showText('🛡️ 三娃', '我有铜头铁臂，可以挡住敌人的攻击！', [{ text: '继续探索', next: 'random_event' }]); },
+  join_四娃: () => { showText('🔥 四娃', '我的火焰可以烧伤敌人！', [{ text: '继续探索', next: 'random_event' }]); },
+  join_五娃: () => { showText('💧 五娃', '我可以用水治疗你的伤口！', [{ text: '继续探索', next: 'random_event' }]); },
+  join_六娃: () => { showText('💨 六娃', '我可以隐身，偷偷接近敌人！', [{ text: '继续探索', next: 'random_event' }]); },
+  join_七娃: () => { showText('🟣 七娃', '我的宝葫芦可以吸收敌人的攻击！', [{ text: '继续探索', next: 'random_event' }]); },
+  
+  fight_patrol: () => {
+    const dmg = Math.floor(player.power * 0.5);
+    const enemyDmg = Math.floor(15 * (1 - player.skills.length * 0.05));
+    applyEffect({ hp: -enemyDmg, power: 2, bossHp: 0 });
+    showText('战斗结果', `你击退了敌人！造成 ${dmg} 伤害，但你也受伤了。`, [
+      { text: '继续', next: 'random_event' }
+    ]);
+  },
+  
+  escape_patrol: () => {
+    showText('旁白', '你成功逃跑了，但消耗了一些体力...', [
+      { text: '继续', next: 'random_event', effect: { hp: -5 } }
+    ]);
+  },
+  
+  loot: () => {
+    showText('旁白', '你获得了一些补给！', [
+      { text: '太好了！', next: 'random_event' }
+    ]);
+  },
+  
+  random_event: () => {
+    turn++;
+    if (turn > 15 && player.power >= boss.power * 0.9) {
+      showText('旁白', '你感觉时机差不多了，可以去挑战蛇精了！', [
+        { text: '⚔️ 前往蛇精洞府', next: 'boss_entrance' },
+        { text: '再探索一下', next: 'explore_1' }
+      ]);
+    } else {
+      showText('旁白', `回合 ${turn}，继续你的冒险...`, [
+        { text: '🔍 探索', next: 'explore_1' },
+        { text: '💤 休息回复', next: 'rest_event', effect: { hp: 20 } }
+      ]);
+    }
+  },
+  
+  rest_event: () => {
+    showText('旁白', '你找了个安全的地方休息，恢复了一些体力。', [
+      { text: '继续', next: 'random_event' }
+    ]);
+  },
+  
+  boss_entrance: () => {
+    document.getElementById('chapter').textContent = '终章：蛇精洞府';
+    showText('🐍 蛇精', '哈哈哈！葫芦娃，你终于来了！不过...你准备好了吗？\n\n我现在有 '+boss.hp+' 点生命，'+boss.power+' 点战力！', [
+      { text: '⚔️ 决战！', next: 'boss_fight' },
+      { text: '😰 再准备一下', next: 'random_event', effect: { hp: 30, power: 5 } }
+    ]);
+  },
+  
+  boss_fight: () => {
+    const playerDmg = Math.floor(player.power * (1 + player.skills.length * 0.1));
+    const bossDmg = Math.floor(boss.power * (1 - player.skills.length * 0.05));
+    
+    applyEffect({ hp: -bossDmg, bossHp: -playerDmg });
+    
+    if (boss.hp <= 0) {
+      boss.defeated = true;
+      showText('🎉 胜利！', `你成功击败了蛇精！\n\n造成 ${playerDmg} 伤害，受到 ${bossDmg} 伤害。\n\n爷爷被救出来了！`, [
+        { text: '🏆 游戏结束', next: 'ending_win' }
+      ]);
+    } else if (player.hp <= 0) {
+      showText('💀 失败', `你被蛇精打败了...\n\n蛇精还剩 ${boss.hp} 点生命。\n\n下次要更充分地准备！`, [
+        { text: '🔄 重新开始', next: 'restart' }
+      ]);
+    } else {
+      showText('⚔️ 战斗继续', `造成 ${playerDmg} 伤害，受到 ${bossDmg} 伤害。\n\n蛇精还剩 ${boss.hp} 点生命！`, [
+        { text: '继续战斗', next: 'boss_fight' },
+        { text: '暂时撤退', next: 'retreat' }
+      ]);
+    }
+  },
+  
+  retreat: () => {
+    showText('旁白', '你暂时撤退了，需要恢复一下...', [
+      { text: '休息', next: 'random_event', effect: { hp: 40, power: 5 } }
+    ]);
+  },
+  
+  ending_win: () => {
+    document.getElementById('chapter').textContent = '🌟 完美结局';
+    showText('爷爷', '好孩子！你做到了！爷爷为你骄傲！\n\n你的善良和勇气打动了蛇精，她同意和解。\n\n从此，葫芦山恢复了和平...', [
+      { text: '🔄 再玩一次', next: 'restart' }
+    ]);
+  },
+  
+  restart: () => {
+    location.reload();
   }
+};
+
+function showEvent(eventId) {
+  if (events[eventId]) events[eventId]();
 }
 
-document.getElementById('dialogue').addEventListener('click', (e) => {
-  if (e.target.classList.contains('choice-btn')) return;
-  if (!isTyping && document.getElementById('choices').children.length === 0) {
-    const scene = story.chapters[currentChapter].scenes[currentScene];
-    if (scene && scene.next !== undefined && !scene.ending) {
-      currentScene = scene.next;
-      loadScene();
+function doAction(action) {
+  if (action === 'explore') {
+    showEvent('explore_1');
+  } else if (action === 'rest') {
+    applyEffect({ hp: 25, power: 3 });
+    showText('旁白', '你休息了一会儿，恢复了体力。', [
+      { text: '继续', next: 'random_event' }
+    ]);
+  } else if (action === 'fight') {
+    if (player.power >= boss.power * 0.9) {
+      showEvent('boss_entrance');
+    } else {
+      showText('旁白', '你感觉现在还不是时候...蛇精太强了。', [
+        { text: '继续修炼', next: 'explore_1' }
+      ]);
     }
   }
+}
+
+// 初始化角色选择
+const charSelectDiv = document.getElementById('charSelect');
+characters.forEach(char => {
+  const card = document.createElement('div');
+  card.className = 'char-card';
+  card.style.borderColor = char.color;
+  card.innerHTML = `
+    <div style="font-size:32px;">${char.icon}</div>
+    <div class="char-name" style="color:${char.color}">${char.name}</div>
+    <div class="char-skill">${char.skill}</div>
+  `;
+  card.onclick = () => initGame(char.id);
+  charSelectDiv.appendChild(card);
 });
-
-animate();
-loadScene();
 </script>
 </body>
 </html>
