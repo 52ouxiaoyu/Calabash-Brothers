@@ -1,4 +1,4 @@
-# 🎮 葫芦兄弟：拯救爷爷 | Calabash Brothers: Save Grandpa
+# 🎮 葫芦爷就娃娃
 
 > 一款基于经典动画《葫芦兄弟》的横版像素冒险闯关游戏
 
