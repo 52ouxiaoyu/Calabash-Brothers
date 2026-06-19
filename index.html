@@ -513,10 +513,11 @@ function showDialogue(scene) {
     updateStats();
   }
   
+  // 如果有选择或需要继续按钮，显示提示
+  const choicesDiv = document.getElementById('choices');
+  choicesDiv.innerHTML = '';
+  
   typeText(scene.text, () => {
-    const choicesDiv = document.getElementById('choices');
-    choicesDiv.innerHTML = '';
-    
     if (scene.choices && scene.choices.length > 0) {
       scene.choices.forEach((choice, index) => {
         if (choice.condition) {
@@ -545,6 +546,8 @@ function showDialogue(scene) {
       const btn = document.createElement('button');
       btn.className = 'choice-btn';
       btn.textContent = '▶️ 继续';
+      btn.style.background = 'linear-gradient(135deg, #4a7a2a, #2a5a1a)';
+      btn.style.borderColor = '#6a9a4a';
       btn.onclick = () => {
         currentScene = scene.next;
         loadScene();
@@ -580,6 +583,18 @@ function updateStats() {
 }
 
 loadScene();
+
+// 点击对话区域任意位置继续（当没有按钮时）
+document.getElementById('dialogue').addEventListener('click', (e) => {
+  if (e.target.classList.contains('choice-btn')) return;
+  if (!isTyping && document.getElementById('choices').children.length === 0) {
+    const scene = chapters[currentChapter].scenes[currentScene];
+    if (scene && scene.next !== undefined && !scene.ending) {
+      currentScene = scene.next;
+      loadScene();
+    }
+  }
+});
 </script>
 </body>
 </html>
